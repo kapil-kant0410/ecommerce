@@ -29,7 +29,7 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false,unique = true)
     private String email;
 
     @Column(nullable = false)
@@ -38,6 +38,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     @JsonIgnore
     private String password;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
 
     @Enumerated(EnumType.STRING)
     private Role role;
