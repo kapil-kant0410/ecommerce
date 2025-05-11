@@ -7,7 +7,6 @@ import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import java.util.Date;
@@ -20,19 +19,27 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration}")
-    private Long jwtExpiration;
+    @Value("${jwt.access_token.expiration}")
+    private Long accessTokenExpiration;
 
-    public String generateJwtToken(Authentication authentication){
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        Date expirationTime = new Date(System.currentTimeMillis() + jwtExpiration);
+    @Value("${jwt.refresh_token.expiration}")
+    private Long refreshTokenExpiration;
+
+    public String generateJwtToken(UserDetails userDetails,Long userId,Long expiration) {
+        Date expirationTime = new Date(System.currentTimeMillis() + expiration);
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim("userId",userId)
                 .claim("roles", userDetails.getAuthorities())
                 .setIssuedAt(new Date())
                 .setExpiration(expirationTime)
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
+    }
+
+    public Long getUserIdFromToken(String token){
+          Claims claims= Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody();
+          return claims.get("userId", Long.class);
     }
 
     public String getUserNameFromJwtToken(String token) {

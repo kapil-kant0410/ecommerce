@@ -20,7 +20,6 @@ public class UserServiceImpl implements UserService {
         this.userRepository = userRepository;
     }
 
-    @Override
     public ResponseEntity<ApiResponse<Map<String, List<User>>>> getAllUsers() {
         List<User> allUsers = userRepository.findAll();
 

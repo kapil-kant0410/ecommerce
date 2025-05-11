@@ -1,4 +1,4 @@
-package com.ql.ecommerce.dto;
+package com.ql.ecommerce.dto.auth.request;
 
 
 import jakarta.validation.constraints.Email;
@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 
-public class RegisterRequestDto {
+public class EmailPasswordRegisterRequest {
     @NotBlank(message = "Name field must not be empty")
     @Pattern(regexp = "^[A-Za-z]+([\\s][A-Za-z]+)*$", message = "Name must contain only alphabets and spaces")
     private String name;

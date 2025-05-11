@@ -1,15 +1,13 @@
 package com.ql.ecommerce.controller;
 
-import com.ql.ecommerce.dto.ApiResponse;
-import com.ql.ecommerce.dto.LoginRequestDto;
-import com.ql.ecommerce.dto.RegisterRequestDto;
+import com.ql.ecommerce.dto.*;
+import com.ql.ecommerce.dto.auth.request.*;
 import com.ql.ecommerce.service.AuthService;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 import java.util.Map;
 
 
@@ -24,14 +22,59 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Map<String,String>>> registerUser(@Valid @RequestBody RegisterRequestDto userRegisterRequestDto){
-        return authService.register(userRegisterRequestDto);
+    public ResponseEntity<ApiResponse<Map<String,String>>> registerUser(@Valid @RequestBody EmailPasswordRegisterRequest emailPasswordRegisterRequest){
+        return authService.register(emailPasswordRegisterRequest);
+    }
+
+    @PostMapping("/verify-email")
+    ResponseEntity<ApiResponse<Map<String, String>>> verifyEmail(@RequestParam Long userId,@RequestParam String token){
+        return authService.verifyEmail(userId,token);
+    }
+
+    @PostMapping("/resend-email-verification")
+    public ResponseEntity<ApiResponse<Map<String,String>>> resendEmailVerification(@Valid @RequestBody EmailRequest emailVerificationRequest){
+        return authService.resendEmailVerification(emailVerificationRequest);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String,String>>> loginByPassword(@Valid @RequestBody LoginRequestDto loginRequestDto) {
-        return authService.login(loginRequestDto);
+    public ResponseEntity<ApiResponse<Map<String,String>>> loginByPassword(@Valid @RequestBody EmailPasswordLoginRequest emailPasswordLoginRequest) {
+        return authService.login(emailPasswordLoginRequest);
     }
 
+    @PostMapping("/generate-otp")
+    public ResponseEntity<ApiResponse<Map<String,String>>> generateEmailOtp(@Valid @RequestBody EmailOtpLoginRequest emailOtpLoginRequest) {
+        return authService.generateEmailOtp(emailOtpLoginRequest);
+    }
+
+    @PostMapping("/validate-otp")
+    public ResponseEntity<ApiResponse<Map<String,String>>> validateEmailOtp(@Valid @RequestBody EmailOtpVerifyRequest emailOtpVerifyRequest) {
+        return authService.validateEmailOtp(emailOtpVerifyRequest);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Map<String,String>>> logout(@Valid @RequestBody RefreshTokenRequest refreshTokenRequest) {
+        return authService.logout(refreshTokenRequest);
+    }
+
+    @PostMapping("/refresh-access-token")
+    public ResponseEntity<ApiResponse<Map<String,String>>> refreshAccessToken(@Valid @RequestBody RefreshTokenRequest refreshTokenRequest) {
+        return authService.refreshAccessToken(refreshTokenRequest);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Map<String,String>>> forgotPassword(@Valid @RequestBody EmailRequest emailRequest) {
+        return authService.forgotPassword(emailRequest);
+    }
+
+    @Transactional
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Map<String,String>>> resetPassword(@RequestParam Long userId,@RequestParam String token,@RequestParam String newPassword) {
+        return authService.resetPassword(userId,token,newPassword);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Map<String,String>>> changePassword(@Valid @RequestBody ChangePasswordRequest changePasswordRequest){
+         return authService.changePassword(changePasswordRequest);
+    }
 
 }
