@@ -283,4 +283,21 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    //If email is null in authentication context
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleUnauthorizedException(UnauthorizedException ex, HttpServletRequest request) {
+
+        Map<String, String> errorDetails = new HashMap<>();
+        errorDetails.put("path", request.getRequestURI());
+        errorDetails.put("timestamp", Instant.now().toString());
+        errorDetails.put("error", HttpStatus.UNAUTHORIZED.getReasonPhrase());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(
+                        HttpStatus.UNAUTHORIZED.value(),
+                        errorDetails,
+                        ex.getMessage()
+                ));
+    }
+
 }

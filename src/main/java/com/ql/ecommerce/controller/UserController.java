@@ -3,7 +3,6 @@ package com.ql.ecommerce.controller;
 import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.user.request.UserUpdate;
 import com.ql.ecommerce.dto.user.response.UserDto;
-import com.ql.ecommerce.entity.User;
 import com.ql.ecommerce.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;

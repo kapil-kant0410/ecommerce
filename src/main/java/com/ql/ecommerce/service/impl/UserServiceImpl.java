@@ -8,8 +8,6 @@ import com.ql.ecommerce.exception.UserNotFoundException;
 import com.ql.ecommerce.mapper.UserMapper;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.service.UserService;
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
