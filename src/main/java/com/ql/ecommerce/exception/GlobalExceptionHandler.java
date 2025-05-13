@@ -51,6 +51,28 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorDetails, "No static resource " + ex.getResourcePath()));
     }
 
+    //handeling all runtime exceptions
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleRunTimeException(RuntimeException ex, HttpServletRequest request) {
+        Map<String, String> errorDetails = new HashMap<>();
+        errorDetails.put("path", request.getRequestURI());
+        errorDetails.put("error", ex.getMessage());
+        errorDetails.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorDetails, "No static resource " + ex.getMessage()));
+    }
+
+    //Remove this when u will add role based end points
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleForbiddenException(ForbiddenException ex,HttpServletRequest request) {
+        Map<String, String> errorDetails = new HashMap<>();
+        errorDetails.put("path", request.getRequestURI());
+        errorDetails.put("error", ex.getMessage());
+        errorDetails.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), errorDetails , ex.getMessage()));
+    }
+
     //Handler for all resource-not-found-type exceptions
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Map<String,String>>> handleResourceNotFoundException(ResourceNotFoundException ex,HttpServletRequest request){

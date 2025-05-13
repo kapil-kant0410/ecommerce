@@ -52,17 +52,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwtUtil.validateJwtToken(jwt)) {
                 String username = jwtUtil.getUserNameFromJwtToken(jwt);
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities()
                 );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-
             filterChain.doFilter(request, response);
-
         } catch (MissingTokenException e) {
             logger.info("Missing JWT token");
             sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing JWT token", e.getMessage(), request.getRequestURI());
