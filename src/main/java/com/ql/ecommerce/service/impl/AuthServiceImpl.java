@@ -121,7 +121,7 @@ public class AuthServiceImpl implements AuthService {
     //verifying email by token that is received while registering user and delete verification token from table
     public ResponseEntity<ApiResponse<Map<String,String>>> verifyEmail(Long userId,String token){
 
-    VerificationToken verificationToken=verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.EMAIL_VERIFICATION).orElseThrow(()-> new VerificationTokenNotFoundException("Email verification token not found"));
+    VerificationToken verificationToken=verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.EMAIL_VERIFICATION).orElseThrow(()-> new VerificationTokenNotFound("Email verification token not found"));
 
     if(!passwordEncoder.matches(token,verificationToken.getTokenHash())){
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -147,7 +147,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public ResponseEntity<ApiResponse<Map<String,String>>> resendEmailVerification(EmailRequest emailRequest){
           String email=emailRequest.getEmail();
-          User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFoundException("User not found with this email"));
+          User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email"));
 
           if(user.isEmailVerified()){
               ApiResponse<Map<String, String>> response = ApiResponse.error(
@@ -188,7 +188,7 @@ public class AuthServiceImpl implements AuthService {
     //login by email and password
     public ResponseEntity<ApiResponse<Map<String,String>>> login(EmailPasswordLoginRequest emailPasswordLoginRequest){
 
-        User user=userRepository.findByEmail(emailPasswordLoginRequest.getEmail()).orElseThrow(()->new UserNotFoundException("User not found with this email."));
+        User user=userRepository.findByEmail(emailPasswordLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -223,7 +223,7 @@ public class AuthServiceImpl implements AuthService {
     //generating email otp
     public ResponseEntity<ApiResponse<Map<String,String>>> generateEmailOtp(EmailOtpLoginRequest emailOtpLoginRequest){
 
-        userRepository.findByEmail(emailOtpLoginRequest.getEmail()).orElseThrow(()->new UserNotFoundException("User not found with this email."));
+        userRepository.findByEmail(emailOtpLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
         String randomOtp=String.valueOf(random.nextInt(900000)+100000);
 
         Otp otp=new Otp();
@@ -248,8 +248,8 @@ public class AuthServiceImpl implements AuthService {
     //validating otp from otps table
     public ResponseEntity<ApiResponse<Map<String,String>>> validateEmailOtp(EmailOtpVerifyRequest emailOtpVerifyRequest){
 
-        User user=userRepository.findByEmail(emailOtpVerifyRequest.getEmail()).orElseThrow(()->new UserNotFoundException("User Not found with this email."));
-        Otp otp=otpRepository.findTopByEmailOrderByGeneratedAtDesc(emailOtpVerifyRequest.getEmail()).orElseThrow(()-> new OtpNotFoundException("Otp not found for this email"));
+        User user=userRepository.findByEmail(emailOtpVerifyRequest.getEmail()).orElseThrow(()->new UserNotFound("User Not found with this email."));
+        Otp otp=otpRepository.findTopByEmailOrderByGeneratedAtDesc(emailOtpVerifyRequest.getEmail()).orElseThrow(()-> new OtpNotFound("Otp not found for this email"));
 
         if (otp.getGeneratedAt().isBefore(LocalDateTime.now().minusMinutes(20))) {
             ApiResponse<Map<String,String>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Otp expired");
@@ -287,12 +287,12 @@ public class AuthServiceImpl implements AuthService {
     public ResponseEntity<ApiResponse<Map<String,String>>> logout(RefreshTokenRequest refreshTokenRequest){
 
         if(!jwtUtil.validateJwtToken(refreshTokenRequest.getRefreshToken())){
-            throw new InvalidTokenException("token is invalid");
+            throw new InvalidToken("token is invalid");
         }
 
         Long userId= jwtUtil.getUserIdFromToken(refreshTokenRequest.getRefreshToken());
 
-      refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFoundException("Refresh token not found"));
+      refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Refresh token not found"));
       refreshTokenRepository.deleteByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
 
       ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.CREATED.value(), Collections.emptyMap(),"User logged out successfully");
@@ -303,17 +303,17 @@ public class AuthServiceImpl implements AuthService {
     public ResponseEntity<ApiResponse<Map<String,String>>> refreshAccessToken(RefreshTokenRequest refreshTokenRequest){
 
           if(!jwtUtil.validateJwtToken(refreshTokenRequest.getRefreshToken())){
-              throw new InvalidTokenException("token is invalid");
+              throw new InvalidToken("token is invalid");
           }
 
           Long userId= jwtUtil.getUserIdFromToken(refreshTokenRequest.getRefreshToken());
           String email=jwtUtil.getUserNameFromJwtToken(refreshTokenRequest.getRefreshToken());
 
-          RefreshToken oldRefreshToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFoundException("Invalid refresh token already logged out"));
+          RefreshToken oldRefreshToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Invalid refresh token already logged out"));
 
          if (oldRefreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(oldRefreshToken);
-            throw new TokenExpiredException("Refresh token expired");
+            throw new TokenExpired("Refresh token expired");
          }
 
           UserDetails userDetails=customUserDetailsService.loadUserByUsername(email);
@@ -336,7 +336,7 @@ public class AuthServiceImpl implements AuthService {
     //generating password reset token for that user
     public ResponseEntity<ApiResponse<Map<String,String>>> forgotPassword(EmailRequest emailRequest){
 
-        User user = userRepository.findByEmail(emailRequest.getEmail()).orElseThrow(()->new UserNotFoundException("User not found with this email"));
+        User user = userRepository.findByEmail(emailRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email"));
 
         //generate token
         String token=UUID.randomUUID().toString();
@@ -367,7 +367,7 @@ public class AuthServiceImpl implements AuthService {
     //verifying reset password token delete it from verification_token table and update new password
     public ResponseEntity<ApiResponse<Map<String,String>>> resetPassword(Long userId ,String token,String newPassword){
 
-        VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD).orElseThrow(()->new VerificationTokenNotFoundException("Password reset token not found"));
+        VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD).orElseThrow(()->new VerificationTokenNotFound("Password reset token not found"));
 
         if(!passwordEncoder.matches(token,verificationToken.getTokenHash())){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -398,7 +398,7 @@ public class AuthServiceImpl implements AuthService {
                     )
             );
         }
-        User user=userRepository.findById(changePasswordRequest.getUserId()).orElseThrow(()-> new UserNotFoundException("User not found with this userId"));
+        User user=userRepository.findById(changePasswordRequest.getUserId()).orElseThrow(()-> new UserNotFound("User not found with this userId"));
         if(!passwordEncoder.matches(changePasswordRequest.getPassword(),user.getPassword())){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), Collections.emptyMap(), "Current password is incorrect"));

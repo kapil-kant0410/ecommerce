@@ -2,12 +2,14 @@ package com.ql.ecommerce.exception;
 
 import com.ql.ecommerce.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,7 +51,7 @@ public class GlobalExceptionHandler {
         errorDetails.put("error", "Internal Server Error");
         errorDetails.put("timestamp", Instant.now().toString());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorDetails, "No static resource " + ex.getResourcePath()));
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorDetails, "No static resource found" + ex.getResourcePath()));
     }
 
     //handeling all runtime exceptions
@@ -58,13 +61,13 @@ public class GlobalExceptionHandler {
         errorDetails.put("path", request.getRequestURI());
         errorDetails.put("error", ex.getMessage());
         errorDetails.put("timestamp", Instant.now().toString());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorDetails, "No static resource " + ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), errorDetails, ex.getMessage()));
     }
 
     //Remove this when u will add role based end points
-    @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<ApiResponse<Map<String,String>>> handleForbiddenException(ForbiddenException ex,HttpServletRequest request) {
+    @ExceptionHandler(Forbidden.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleForbiddenException(Forbidden ex, HttpServletRequest request) {
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("path", request.getRequestURI());
         errorDetails.put("error", ex.getMessage());
@@ -74,8 +77,8 @@ public class GlobalExceptionHandler {
     }
 
     //Handler for all resource-not-found-type exceptions
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Map<String,String>>> handleResourceNotFoundException(ResourceNotFoundException ex,HttpServletRequest request){
+    @ExceptionHandler(ResourceNotFound.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleResourceNotFoundException(ResourceNotFound ex, HttpServletRequest request){
         logger.warn("Resource not found at [{}]: {}", request.getRequestURI(), ex.getMessage());
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("path", request.getRequestURI());
@@ -86,8 +89,8 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), errorDetails,ex.getMessage()));
     }
 
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ApiResponse<Map<String,String>>> handleInvalidTokenException(InvalidTokenException ex,HttpServletRequest request){
+    @ExceptionHandler(InvalidToken.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleInvalidTokenException(InvalidToken ex, HttpServletRequest request){
         logger.warn("Invalid token at [{}]: {}", request.getRequestURI(), ex.getMessage());
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("error", HttpStatus.UNAUTHORIZED.getReasonPhrase());
@@ -112,8 +115,8 @@ public class GlobalExceptionHandler {
     }
 
     //Handles Token expiration in ExpiredJwtException
-    @ExceptionHandler(TokenExpiredException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleTokenExpiredException(TokenExpiredException ex, HttpServletRequest request) {
+    @ExceptionHandler(TokenExpired.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleTokenExpiredException(TokenExpired ex, HttpServletRequest request) {
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("error", HttpStatus.UNAUTHORIZED.getReasonPhrase());
         errorDetails.put("path", request.getRequestURI());
@@ -129,8 +132,8 @@ public class GlobalExceptionHandler {
     }
 
     //Handle exception when missing token
-    @ExceptionHandler(MissingTokenException.class) // Handles only MissingTokenException
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleMissingTokenException(MissingTokenException ex, HttpServletRequest request) {
+    @ExceptionHandler(MissingToken.class) // Handles only MissingTokenException
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleMissingTokenException(MissingToken ex, HttpServletRequest request) {
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("error", HttpStatus.UNAUTHORIZED.getReasonPhrase());
         errorDetails.put("path", request.getRequestURI());
@@ -145,8 +148,8 @@ public class GlobalExceptionHandler {
     }
 
     //handel exception for blacklisted tokens
-    @ExceptionHandler(BlacklistedTokenException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleBlacklistedTokenException(BlacklistedTokenException ex, HttpServletRequest request) {
+    @ExceptionHandler(BlacklistedToken.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleBlacklistedTokenException(BlacklistedToken ex, HttpServletRequest request) {
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("error", HttpStatus.UNAUTHORIZED.getReasonPhrase()); // "Unauthorized"
         errorDetails.put("path", request.getRequestURI());
@@ -162,8 +165,8 @@ public class GlobalExceptionHandler {
     }
 
     //handel user if it is unauthenticated
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
+    @ExceptionHandler(AccessDenied.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleAccessDeniedException(AccessDenied ex, HttpServletRequest request) {
         Map<String, String> data = new HashMap<>();
         data.put("error", HttpStatus.FORBIDDEN.getReasonPhrase());
         data.put("path", request.getRequestURI());
@@ -306,8 +309,8 @@ public class GlobalExceptionHandler {
     }
 
     //If email is null in authentication context
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleUnauthorizedException(UnauthorizedException ex, HttpServletRequest request) {
+    @ExceptionHandler(Unauthorized.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleUnauthorizedException(Unauthorized ex, HttpServletRequest request) {
 
         Map<String, String> errorDetails = new HashMap<>();
         errorDetails.put("path", request.getRequestURI());
@@ -320,6 +323,18 @@ public class GlobalExceptionHandler {
                         errorDetails,
                         ex.getMessage()
                 ));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleBadRequestException(BadRequestException ex,HttpServletRequest request) {
+
+        Map<String, String> errorDetails = new HashMap<>();
+        errorDetails.put("path", request.getRequestURI());
+        errorDetails.put("timestamp", Instant.now().toString());
+        errorDetails.put("error", HttpStatus.BAD_REQUEST.getReasonPhrase());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), errorDetails,ex.getMessage()));
     }
 
 }

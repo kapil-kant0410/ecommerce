@@ -3,7 +3,7 @@ package com.ql.ecommerce.service.impl;
 import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.category.response.CategoryDto;
 import com.ql.ecommerce.entity.Category;
-import com.ql.ecommerce.exception.ResourceNotFoundException;
+import com.ql.ecommerce.exception.ResourceNotFound;
 import com.ql.ecommerce.mapper.CategoryMapper;
 import com.ql.ecommerce.repository.CategoryRepository;
 import com.ql.ecommerce.service.CategoryService;
@@ -39,7 +39,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     public ResponseEntity<ApiResponse<Map<String,CategoryDto>>> getCategoryById(Long categoryId){
 
-        Category category=categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFoundException("Category not found with id:"+categoryId));
+        Category category=categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFound("Category not found with id:"+categoryId));
 
         CategoryDto categoryDto=categoryMapper.toDto(category);
 

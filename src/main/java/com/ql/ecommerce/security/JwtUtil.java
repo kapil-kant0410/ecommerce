@@ -1,8 +1,8 @@
 package com.ql.ecommerce.security;
 
 
-import com.ql.ecommerce.exception.InvalidTokenException;
-import com.ql.ecommerce.exception.TokenExpiredException;
+import com.ql.ecommerce.exception.InvalidToken;
+import com.ql.ecommerce.exception.TokenExpired;
 import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,14 +48,15 @@ public class JwtUtil {
 
     public boolean validateJwtToken(String authToken) {
         try {
+            logger.info("In JwtUtil,validating token");
             Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(authToken);
             return true;
         }  catch(ExpiredJwtException e){
             logger.error("JWT token is expired: {}", e.getMessage());
-            throw new TokenExpiredException("JWT token is expired");
+            throw new TokenExpired("JWT token is expired");
         }catch ( Exception e){
             logger.error("Exception while validating token: {}", e.getMessage());
-            throw new InvalidTokenException("Invalid JWT token from validate token");
+            throw new InvalidToken("Invalid JWT token from validate token");
         }
     }
 

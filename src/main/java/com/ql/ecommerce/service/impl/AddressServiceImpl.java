@@ -4,9 +4,9 @@ import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.address.response.AddressDto;
 import com.ql.ecommerce.entity.Address;
 import com.ql.ecommerce.entity.User;
-import com.ql.ecommerce.exception.AddressNotFoundException;
-import com.ql.ecommerce.exception.UnauthorizedException;
-import com.ql.ecommerce.exception.UserNotFoundException;
+import com.ql.ecommerce.exception.AddressNotFound;
+import com.ql.ecommerce.exception.Unauthorized;
+import com.ql.ecommerce.exception.UserNotFound;
 import com.ql.ecommerce.mapper.AddressMapper;
 import com.ql.ecommerce.repository.AddressRepository;
 import com.ql.ecommerce.repository.UserRepository;
@@ -42,11 +42,11 @@ public class AddressServiceImpl implements AddressService {
         String email=authUtil.getCurrentUserEmail();
 
         if(email==null){
-          throw new UnauthorizedException("Unauthorized access");
+          throw new Unauthorized("Unauthorized access");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
         List<Address> addresses=user.getAddresses();
         List<AddressDto> addressDtoList=addressMapper.toDtoList(addresses);
@@ -67,11 +67,11 @@ public class AddressServiceImpl implements AddressService {
         String email=authUtil.getCurrentUserEmail();
 
         if(email==null){
-            throw new UnauthorizedException("Unauthorized access");
+            throw new Unauthorized("Unauthorized access");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
         Address address=addressMapper.toEntity(addressDto);
         address.setUser(user);
@@ -96,14 +96,14 @@ public class AddressServiceImpl implements AddressService {
 
         String email=authUtil.getCurrentUserEmail();
         if(email==null){
-            throw new UnauthorizedException("Unauthorized access");
+            throw new Unauthorized("Unauthorized access");
         }
 
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFoundException("User not found with email: " + email));
-        Address address=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFoundException("Address not found with id: " + addressId));
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email: " + email));
+        Address address=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFound("Address not found with id: " + addressId));
 
        if(!address.getUser().getId().equals(user.getId())){
-           throw new UnauthorizedException("You are not authorized to view this address");
+           throw new Unauthorized("You are not authorized to view this address");
        }
 
        AddressDto addressDto=addressMapper.toDto(address);
@@ -126,16 +126,16 @@ public class AddressServiceImpl implements AddressService {
 
         String email=authUtil.getCurrentUserEmail();
         if(email==null){
-            throw new UnauthorizedException("Unauthorized access");
+            throw new Unauthorized("Unauthorized access");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
-        Address existingAddress=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFoundException("Address not found with id: " + addressId));
+        Address existingAddress=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFound("Address not found with id: " + addressId));
 
         if(!existingAddress.getUser().getId().equals(user.getId())){
-            throw new UnauthorizedException("You are not authorized to update this address");
+            throw new Unauthorized("You are not authorized to update this address");
         }
 
         existingAddress.setCity(addressDto.getCity());
@@ -158,14 +158,14 @@ public class AddressServiceImpl implements AddressService {
 
         String email=authUtil.getCurrentUserEmail();
         if(email==null){
-            throw new UnauthorizedException("Unauthorized access");
+            throw new Unauthorized("Unauthorized access");
         }
 
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFoundException("User not found with email: " + email));
-        Address address=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFoundException("Address not found with id: " + addressId));
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email: " + email));
+        Address address=addressRepository.findById(addressId).orElseThrow(()-> new AddressNotFound("Address not found with id: " + addressId));
 
         if(!address.getUser().getId().equals(user.getId())){
-            throw new UnauthorizedException("You are not authorized to delete this address");
+            throw new Unauthorized("You are not authorized to delete this address");
         }
 
         addressRepository.deleteById(addressId);
@@ -184,14 +184,14 @@ public class AddressServiceImpl implements AddressService {
 
         String email=authUtil.getCurrentUserEmail();
         if(email==null){
-            throw new UnauthorizedException("Unauthorized access");
+            throw new Unauthorized("Unauthorized access");
         }
 
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFoundException("User not found with email:"+email));
-        Address address=addressRepository.findById(addressId).orElseThrow(()->new AddressNotFoundException("Address not found with id: " + addressId));
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email:"+email));
+        Address address=addressRepository.findById(addressId).orElseThrow(()->new AddressNotFound("Address not found with id: " + addressId));
 
         if(!address.getUser().getId().equals(user.getId())){
-            throw new UnauthorizedException("You are not authorized to use this address");
+            throw new Unauthorized("You are not authorized to use this address");
         }
 
         List<Address> userAddresses=addressRepository.findByUser(user);

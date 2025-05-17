@@ -2,9 +2,9 @@ package com.ql.ecommerce.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ql.ecommerce.dto.ApiResponse;
-import com.ql.ecommerce.exception.InvalidTokenException;
-import com.ql.ecommerce.exception.MissingTokenException;
-import com.ql.ecommerce.exception.TokenExpiredException;
+import com.ql.ecommerce.exception.InvalidToken;
+import com.ql.ecommerce.exception.MissingToken;
+import com.ql.ecommerce.exception.TokenExpired;
 import com.ql.ecommerce.service.CustomUserDetailsService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,35 +37,41 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
+        logger.info("----------------------------------------------------------------------------------------------");
         String path = request.getRequestURI();
 
         if (path.startsWith("/api/auth/")) {
+            logger.info("In JwtAuth filter Does not need token on this route next it move to controller");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
+            logger.info("In JwtAuth filter need token on this next validating the token");
             String jwt = parseJwt(request);
             if (jwt == null) {
-                throw new MissingTokenException("JWT token is missing");
+                throw new MissingToken("JWT token is missing");
             }
             if (jwtUtil.validateJwtToken(jwt)) {
+                logger.info("In JwtAuth filter after validation of token");
                 String username = jwtUtil.getUserNameFromJwtToken(jwt);
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+                logger.info("In JwtAuth filter userDetail object loaded from userDetail service");
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities()
                 );
+                logger.info("In JwtAuth filter after userDetail object loaded setting authentication in security context holder");
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
             filterChain.doFilter(request, response);
-        } catch (MissingTokenException e) {
+        } catch (MissingToken e) {
             logger.info("Missing JWT token");
             sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing JWT token", e.getMessage(), request.getRequestURI());
-        } catch (TokenExpiredException e) {
+        } catch (TokenExpired e) {
             logger.info("JWT token is expired");
             sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "JWT token is expired", e.getMessage(), request.getRequestURI());
-        } catch (InvalidTokenException e) {
+        } catch (InvalidToken e) {
             logger.info("Invalid JWT token");
             sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token", e.getMessage(), request.getRequestURI());
         } catch (Exception e) {

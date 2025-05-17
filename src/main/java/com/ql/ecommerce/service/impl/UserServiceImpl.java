@@ -4,7 +4,7 @@ import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.user.request.UserUpdate;
 import com.ql.ecommerce.dto.user.response.UserDto;
 import com.ql.ecommerce.entity.User;
-import com.ql.ecommerce.exception.UserNotFoundException;
+import com.ql.ecommerce.exception.UserNotFound;
 import com.ql.ecommerce.mapper.UserMapper;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.service.UserService;
@@ -61,7 +61,7 @@ public class UserServiceImpl implements UserService {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
         UserDto userDto=userMapper.toDto(user);
 
@@ -92,7 +92,7 @@ public class UserServiceImpl implements UserService {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
         user.setName(userUpdate.getName());
         User updatedUser=userRepository.save(user);
@@ -125,7 +125,7 @@ public class UserServiceImpl implements UserService {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
         user.setEnabled(false);
 

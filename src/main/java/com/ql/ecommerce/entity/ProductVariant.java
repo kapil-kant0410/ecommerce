@@ -1,10 +1,7 @@
 package com.ql.ecommerce.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -16,6 +13,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class ProductVariant {
 
     @Id
@@ -33,6 +31,9 @@ public class ProductVariant {
 
     @Column(nullable = false)
     private Long price;
+
+    @Column(nullable = false)
+    private Integer rating;
 
     @Column(nullable = false)
     private Long stockQuantity;
