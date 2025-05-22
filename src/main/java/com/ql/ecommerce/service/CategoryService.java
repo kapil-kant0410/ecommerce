@@ -10,8 +10,6 @@ import java.util.Map;
 
 @Service
 public interface CategoryService {
-
     ResponseEntity<ApiResponse<Map<String, List<CategoryDto>>>> getAllCategories();
     ResponseEntity<ApiResponse<Map<String,CategoryDto>>> getCategoryById(Long categoryId);
-
 }

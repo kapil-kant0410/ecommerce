@@ -3,7 +3,6 @@ package com.ql.ecommerce.controller;
 import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.cart.AddToCartRequestDto;
 import com.ql.ecommerce.dto.cart.CartItemDto;
-import com.ql.ecommerce.entity.CartItem;
 import com.ql.ecommerce.service.CartService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
