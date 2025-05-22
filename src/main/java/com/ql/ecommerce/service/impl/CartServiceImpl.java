@@ -1,0 +1,248 @@
+package com.ql.ecommerce.service.impl;
+
+import com.ql.ecommerce.dto.ApiResponse;
+import com.ql.ecommerce.dto.cart.AddToCartRequestDto;
+import com.ql.ecommerce.dto.cart.CartItemDto;
+import com.ql.ecommerce.dto.cart.CartSummaryDto;
+import com.ql.ecommerce.entity.*;
+import com.ql.ecommerce.exception.*;
+import com.ql.ecommerce.mapper.CartItemMapper;
+import com.ql.ecommerce.repository.CartItemRepository;
+import com.ql.ecommerce.repository.CartRepository;
+import com.ql.ecommerce.repository.ProductVariantRepository;
+import com.ql.ecommerce.repository.UserRepository;
+import com.ql.ecommerce.security.AuthUtil;
+import com.ql.ecommerce.service.CartService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+
+@Service
+public class CartServiceImpl implements CartService {
+
+    private final AuthUtil authUtil;
+    private final UserRepository userRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final CartItemMapper cartItemMapper;
+    private final Logger logger= LoggerFactory.getLogger(CartServiceImpl.class);
+
+    public CartServiceImpl(CartItemMapper cartItemMapper,CartItemRepository cartItemRepository,CartRepository cartRepository,ProductVariantRepository productVariantRepository,UserRepository userRepository, AuthUtil authUtil){
+        this.authUtil=authUtil;
+        this.userRepository=userRepository;
+        this.productVariantRepository=productVariantRepository;
+        this.cartRepository=cartRepository;
+        this.cartItemRepository=cartItemRepository;
+        this.cartItemMapper=cartItemMapper;
+    }
+
+
+    public ResponseEntity<ApiResponse<Map<String, List<CartItemDto>>>> getCurrentUserCart(){
+
+        String email=authUtil.getCurrentUserEmail();
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email "+email));
+        Cart cart=cartRepository.findByUser(user)
+                .orElseGet(()->{
+                    Cart newCart=new Cart();
+                    newCart.setUser(user);
+                    return cartRepository.save(newCart);
+                });
+
+        List<CartItem> cartItems=cartItemRepository.findByCart(cart);
+        List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
+
+        Map<String, List<CartItemDto>> data = new HashMap<>();
+        data.put("cart_items", cartItemDtos);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "Cart fetched successfully"
+        ));
+
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,CartItemDto>>> addItemToCart(AddToCartRequestDto addToCartRequestDto){
+
+        String email = authUtil.getCurrentUserEmail();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
+
+        logger.info("user id which user insert the item in the cart :{}",user.getId());
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseGet(()->{
+                    Cart newCart=new Cart();
+                    newCart.setUser(user);
+                    return cartRepository.save(newCart);
+                });
+
+        logger.info("cart id of user in which item will insert :{}",cart.getId());
+
+        ProductVariant productVariant = productVariantRepository.findById(addToCartRequestDto.getProductVariantId())
+                .orElseThrow(() -> new ProductVariantNotFound("ProductVariant not found with ID: " + addToCartRequestDto.getProductVariantId()));
+
+        Optional<CartItem> existingItemOpt=cartItemRepository.findByCartAndProductVariant(cart,productVariant);
+        CartItem savedItem;
+
+        if(existingItemOpt.isPresent()){
+            CartItem existingItem = existingItemOpt.get();
+            existingItem.setQuantity(existingItem.getQuantity()+addToCartRequestDto.getQuantity());
+            savedItem= cartItemRepository.save(existingItem);
+        }else{
+            CartItem cartItem=new CartItem();
+            cartItem.setCart(cart);
+            cartItem.setQuantity(addToCartRequestDto.getQuantity());
+            cartItem.setProductVariant(productVariant);
+            cartItem.setPriceSnapshot(productVariant.getPrice());
+            savedItem= cartItemRepository.save(cartItem);
+        }
+
+        CartItemDto cartItemDto=cartItemMapper.toDto(savedItem);
+
+        Map<String, CartItemDto> data = new HashMap<>();
+        data.put("cart_item", cartItemDto);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "Item added to cart successfully"
+        ));
+
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,CartItemDto>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto){
+
+          String email=authUtil.getCurrentUserEmail();
+
+          User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+ email));
+          ProductVariant productVariant=productVariantRepository.findById(addToCartRequestDto.getProductVariantId()).orElseThrow(()-> new ProductVariantNotFound("product variant not found for this product variant id "+addToCartRequestDto.getProductVariantId()));
+          CartItem cartItem=cartItemRepository.findByCartIdAndProductVariant(cartId,productVariant).orElseThrow(()-> new CartItemNotFound("cart item not found for this cart id and product variant id"));
+
+          if(!cartItem.getCart().getUser().getId().equals(user.getId())){
+              throw new  Forbidden("User not allowed to update this cart");
+          }
+
+          cartItem.setQuantity(addToCartRequestDto.getQuantity());
+          cartItemRepository.save(cartItem);
+
+        CartItemDto cartItemDto=cartItemMapper.toDto(cartItem);
+
+        Map<String, CartItemDto> data = new HashMap<>();
+        data.put("cart_item", cartItemDto);
+
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "cart item updated successfully"
+        ));
+
+    }
+
+    public ResponseEntity<ApiResponse<Map<String, Object>>> removeCartItem(Long cartItemId){
+
+        String email = authUtil.getCurrentUserEmail();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
+
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new CartItemNotFound("Cart item not found for ID: " + cartItemId));
+
+        if (!cartItem.getCart().getUser().getId().equals(user.getId())) {
+            throw new Forbidden("User not allowed to delete this cart item");
+        }
+
+        cartItemRepository.delete(cartItem);
+
+        CartItemDto cartItemDto=cartItemMapper.toDto(cartItem);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("deleted_cart_item", cartItemDto);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "Cart item removed successfully"
+        ));
+
+    }
+
+   public ResponseEntity<ApiResponse<Map<String, Object>>> clearCart(){
+
+        String email=authUtil.getCurrentUserEmail();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
+        Cart cart=user.getCart();
+       if (cart == null) {
+           throw new CartNotFound("Cart not found for user: " + email);
+       }
+       List<CartItem> cartItems=cartItemRepository.findByCart(cart);
+       List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("deleted_cart_items", cartItemDtos);
+
+        cartItemRepository.deleteAll(cartItems);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "All cart items cleared successfully"
+        ));
+
+    }
+
+
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCartSummary(){
+
+        String email=authUtil.getCurrentUserEmail();
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email"+email));
+
+        Cart cart= user.getCart();
+
+        if(cart==null){
+            throw new CartNotFound("Cart not found for user: " + email);
+        }
+
+        List<CartItem> cartItems = cartItemRepository.findByCart(cart);
+
+        double subtotal = cartItems.stream()
+                .mapToDouble(item -> item.getProductVariant().getPrice() * item.getQuantity())
+                .sum();
+
+        double discount = subtotal > 1000 ? 200.0 : 0.0; // Example: ₹200 off for subtotal > ₹1000
+        double tax = subtotal * 0.09;                   // Example: 9% GST
+        double total = subtotal - discount + tax;
+
+        CartSummaryDto summary = CartSummaryDto.builder()
+                .subtotal(subtotal)
+                .discount(discount)
+                .tax(tax)
+                .total(total)
+                .build();
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("summary", summary);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                data,
+                "Cart summary fetched successfully"
+        ));
+
+    }
+
+
+
+}
