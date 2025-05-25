@@ -59,4 +59,7 @@ public class ProductVariant {
     @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartItem> cartItems = new ArrayList<>();
 
+    @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL)
+    private List<OrderItem> orderItems=new ArrayList<>();
+
 }

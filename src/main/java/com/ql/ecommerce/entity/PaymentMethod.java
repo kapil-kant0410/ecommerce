@@ -9,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "payment_methods")
@@ -45,5 +47,8 @@ public class PaymentMethod {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "paymentMethod", cascade = CascadeType.ALL)
+    private List<Order> ordersPaidWith=new ArrayList<>();
 
 }

@@ -77,6 +77,19 @@ public class CartServiceImpl implements CartService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
 
+        ProductVariant productVariant = productVariantRepository.findById(addToCartRequestDto.getProductVariantId())
+                .orElseThrow(() -> new ProductVariantNotFound("ProductVariant not found with ID: " + addToCartRequestDto.getProductVariantId()));
+
+        long availableQty = productVariant.getStockQuantity() - productVariant.getReservedQuantity();
+
+        if(availableQty<=0){
+            throw new BadRequest("Product is out of stock");
+        }
+
+        if (addToCartRequestDto.getQuantity() > availableQty) {
+            throw new BadRequest("Only " + availableQty + " items available in stock");
+        }
+
         logger.info("user id which user insert the item in the cart :{}",user.getId());
 
         Cart cart = cartRepository.findByUser(user)
@@ -88,22 +101,23 @@ public class CartServiceImpl implements CartService {
 
         logger.info("cart id of user in which item will insert :{}",cart.getId());
 
-        ProductVariant productVariant = productVariantRepository.findById(addToCartRequestDto.getProductVariantId())
-                .orElseThrow(() -> new ProductVariantNotFound("ProductVariant not found with ID: " + addToCartRequestDto.getProductVariantId()));
-
         Optional<CartItem> existingItemOpt=cartItemRepository.findByCartAndProductVariant(cart,productVariant);
         CartItem savedItem;
 
         if(existingItemOpt.isPresent()){
             CartItem existingItem = existingItemOpt.get();
-            existingItem.setQuantity(existingItem.getQuantity()+addToCartRequestDto.getQuantity());
+            long newQty = existingItem.getQuantity() + addToCartRequestDto.getQuantity();
+            if (addToCartRequestDto.getQuantity() > (productVariant.getStockQuantity() - productVariant.getReservedQuantity())) {
+                throw new BadRequest("Total quantity exceeds available stock");
+            }
+            existingItem.setQuantity(newQty);
             savedItem= cartItemRepository.save(existingItem);
         }else{
             CartItem cartItem=new CartItem();
             cartItem.setCart(cart);
             cartItem.setQuantity(addToCartRequestDto.getQuantity());
             cartItem.setProductVariant(productVariant);
-            cartItem.setPriceSnapshot(productVariant.getPrice());
+            cartItem.setPrice(productVariant.getPrice());
             savedItem= cartItemRepository.save(cartItem);
         }
 
@@ -131,6 +145,19 @@ public class CartServiceImpl implements CartService {
           if(!cartItem.getCart().getUser().getId().equals(user.getId())){
               throw new  Forbidden("User not allowed to update this cart");
           }
+
+        if (addToCartRequestDto.getQuantity() > productVariant.getStockQuantity()) {
+            throw new BadRequest("Requested quantity exceeds available stock");
+        }
+
+        Long existingQty = cartItem.getQuantity();
+        Long newQty = addToCartRequestDto.getQuantity();
+
+        long availableQty = (productVariant.getStockQuantity() - productVariant.getReservedQuantity()) + existingQty;
+
+        if (newQty > availableQty) {
+            throw new BadRequest("Requested quantity exceeds available stock. Max allowed: " + availableQty);
+        }
 
           cartItem.setQuantity(addToCartRequestDto.getQuantity());
           cartItemRepository.save(cartItem);
@@ -188,6 +215,9 @@ public class CartServiceImpl implements CartService {
            throw new CartNotFound("Cart not found for user: " + email);
        }
        List<CartItem> cartItems=cartItemRepository.findByCart(cart);
+       if (cartItems.isEmpty()) {
+           throw new BadRequest("Cart is already empty");
+       }
        List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
 
         Map<String, Object> data = new HashMap<>();
