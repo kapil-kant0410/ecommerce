@@ -39,6 +39,16 @@ public class ProductController {
         return productService.getAllProductsV1(productFilter);
     }
 
+    @GetMapping("/{productId}/similar-by-category")
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarByCategory(@PathVariable Long productId) {
+        return productService.getSimilarProductsByCategory(productId);
+    }
+
+    @GetMapping("/{productId}/similar-by-brand")
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarByBrand(@PathVariable Long productId) {
+        return productService.getSimilarProductsByBrand(productId);
+    }
+
     @GetMapping("/{productId}")
     public ResponseEntity<ApiResponse<Map<String,ProductDto>>> getProductById(@PathVariable Long productId){
         return productService.getProductById(productId);
@@ -65,6 +75,11 @@ public class ProductController {
             @ModelAttribute ProductVariantFilter filter) {
 
         return productService.getProductVariantsByProductIdV1(filter);
+    }
+
+    @GetMapping("/{productVariantId}/other-variants")
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariants(@PathVariable Long productVariantId) {
+        return productService.getOtherVariantsByProductVariantId(productVariantId);
     }
 
     @GetMapping("/{productId}/product-variant/{productVariantId}")

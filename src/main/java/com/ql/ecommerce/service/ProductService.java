@@ -16,10 +16,13 @@ public interface ProductService {
      ResponseEntity<ApiResponse<Map<String, ProductDto>>> createProduct(ProductDto productDto);
      ResponseEntity<ApiResponse<Map<String, List<ProductDto>>>> getAllProducts();
      ResponseEntity<ApiResponse<Map<String,Object>>> getAllProductsV1(ProductFilter productFilter);
+     ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByCategory(Long productId);
+     ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByBrand(Long productId);
      ResponseEntity<ApiResponse<Map<String,ProductDto>>> getProductById(Long productId);
      ResponseEntity<ApiResponse<Map<String,ProductDto>>> updateProduct(Long productId,ProductDto productDto);
      ResponseEntity<ApiResponse<Map<String,ProductDto>>> deleteProduct(Long productId);
      ResponseEntity<ApiResponse<Map<String, List<ProductVariantDto>>>> getProductVariantsByProductId(Long productId);
      ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantsByProductIdV1(ProductVariantFilter filter);
+     ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariantsByProductVariantId(Long productVariantId);
      ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> getProductVariantByVariantId(Long productId, Long productVariantId);
 }

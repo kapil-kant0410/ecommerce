@@ -9,8 +9,7 @@ import java.util.Map;
 
 @Service
 public interface OrderService {
-
-    ResponseEntity<ApiResponse<Map<String, Object>>> placeOrder(PlaceOrderRequestDto placeOrderRequestDto);
+    ResponseEntity<ApiResponse<Map<String,Object>>> placeOrder(PlaceOrderRequestDto placeOrderRequestDto);
     ResponseEntity<ApiResponse<Map<String,Object>>> getMyOrders();
     ResponseEntity<ApiResponse<Map<String,Object>>> getOrderDetails(Long orderId);
     ResponseEntity<ApiResponse<Map<String,Object>>> cancelOrder(Long orderId);

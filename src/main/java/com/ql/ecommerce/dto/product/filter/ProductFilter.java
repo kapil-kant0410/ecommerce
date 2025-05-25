@@ -9,7 +9,6 @@ import java.util.List;
 @Getter
 @Setter
 public class ProductFilter {
-
     private int page = 0;                     // default page
     private int size = 10;                    // default size
     private String direction = "asc";         // sort direction

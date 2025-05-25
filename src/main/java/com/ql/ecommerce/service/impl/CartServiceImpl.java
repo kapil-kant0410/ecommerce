@@ -45,7 +45,6 @@ public class CartServiceImpl implements CartService {
         this.cartItemMapper=cartItemMapper;
     }
 
-
     public ResponseEntity<ApiResponse<Map<String, List<CartItemDto>>>> getCurrentUserCart(){
 
         String email=authUtil.getCurrentUserEmail();
@@ -205,7 +204,7 @@ public class CartServiceImpl implements CartService {
 
     }
 
-   public ResponseEntity<ApiResponse<Map<String, Object>>> clearCart(){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> clearCart(){
 
         String email=authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
@@ -232,7 +231,6 @@ public class CartServiceImpl implements CartService {
         ));
 
     }
-
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCartSummary(){
 
@@ -272,7 +270,5 @@ public class CartServiceImpl implements CartService {
         ));
 
     }
-
-
 
 }

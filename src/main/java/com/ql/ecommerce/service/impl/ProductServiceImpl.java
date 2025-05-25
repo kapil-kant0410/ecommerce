@@ -59,7 +59,7 @@ public class ProductServiceImpl implements ProductService {
         this.productVariantSpecification=productVariantSpecification;
     }
 
-    public ResponseEntity<ApiResponse<Map<String, ProductDto>>> createProduct(ProductDto productDto){
+    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> createProduct(ProductDto productDto){
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email: "+email));
@@ -121,6 +121,37 @@ public class ProductServiceImpl implements ProductService {
         data.put("isLastPage", productPage.isLast());
 
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Products fetched successfully"));
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByCategory(Long productId){
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFound("Product not found with this "+ productId));
+
+        List<Product> similarProducts = productRepository.findTop10ByCategoryIdAndIdNot(
+                product.getCategory().getId(), productId);
+
+        List<ProductDto> similarProductDtos=productMapper.toDtoList(similarProducts);
+
+        Map<String,Object> data=new HashMap<>();
+        data.put("similar products",similarProductDtos);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar products by category fetched successfully"));
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByBrand(Long productId){
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFound("Product not found with this "+ productId));
+
+        List<Product> similarProducts = productRepository.findTop10ByBrandAndIdNot(
+                product.getBrand(), productId);
+
+        List<ProductDto> similarProductDtos=productMapper.toDtoList(similarProducts);
+
+        Map<String,Object> data=new HashMap<>();
+        data.put("similar products",similarProductDtos);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar products by brand fetched successfully"));
     }
 
     public ResponseEntity<ApiResponse<Map<String,ProductDto>>> getProductById(Long productId){
@@ -228,6 +259,19 @@ public class ProductServiceImpl implements ProductService {
         data.put("isLastPage", pageResult.isLast());
 
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Product Variants fetched successfully"));
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariantsByProductVariantId(Long productVariantId){
+
+       ProductVariant productVariant=productVariantRepository.findById(productVariantId).orElseThrow(()-> new ProductVariantNotFound("product variant not found with this product variant id "+productVariantId));
+       List<ProductVariant> productVariants=productVariantRepository.findByProductIdAndIdNot(productVariant.getProduct().getId(),productVariantId);
+
+       List<ProductVariantDto> productVariantDtos=productVariantMapper.toDtoList(productVariants);
+
+       Map<String,Object> data=new HashMap<>();
+       data.put("similar product variants",productVariantDtos);
+
+       return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar product Variants fetched successfully"));
     }
 
     public ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> getProductVariantByVariantId(Long productId, Long productVariantId){
