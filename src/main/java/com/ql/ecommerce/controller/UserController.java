@@ -22,24 +22,23 @@ public class UserController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<ApiResponse<Map<String, List<UserDto>>>> getAllUsers(){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAllUsers(){
         return userService.getAllUsers();
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<Map<String, UserDto>>> getCurrentUser(){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getCurrentUser(){
         return userService.getCurrentUser();
     }
 
     @PutMapping("/me")
-    public ResponseEntity<ApiResponse<Map<String,UserDto>>> updateCurrentUser(@Valid @RequestBody UserUpdate userUpdate){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateCurrentUser(@Valid @RequestBody UserUpdate userUpdate){
         return userService.updateCurrentUser(userUpdate);
     }
 
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Map<String, String>>> deleteCurrentUser(){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteCurrentUser(){
         return userService.deleteCurrentUser();
     }
-
 
 }

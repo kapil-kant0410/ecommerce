@@ -6,16 +6,22 @@ import com.ql.ecommerce.entity.Otp;
 import com.ql.ecommerce.entity.RefreshToken;
 import com.ql.ecommerce.entity.User;
 import com.ql.ecommerce.entity.VerificationToken;
-import com.ql.ecommerce.enums.Role;
 import com.ql.ecommerce.enums.TokenType;
 import com.ql.ecommerce.exception.*;
+import com.ql.ecommerce.mapper.OtpMapper;
+import com.ql.ecommerce.mapper.RefreshTokenMapper;
+import com.ql.ecommerce.mapper.UserMapper;
 import com.ql.ecommerce.repository.OtpRepository;
 import com.ql.ecommerce.repository.RefreshTokenRepository;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.repository.VerificationTokenRepository;
+import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.security.JwtUtil;
 import com.ql.ecommerce.service.AuthService;
 import com.ql.ecommerce.service.CustomUserDetailsService;
+import com.ql.ecommerce.service.MailService;
+import com.ql.ecommerce.service.VerificationTokenService;
+import com.ql.ecommerce.util.ResponseBuilder;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +36,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.mail.SimpleMailMessage;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -45,9 +50,14 @@ public class AuthServiceImpl implements AuthService {
     private final Random random=new Random();
     private final OtpRepository otpRepository;
     private final VerificationTokenRepository verificationTokenRepository;
-    private final JavaMailSender javaMailSender;
     private final CustomUserDetailsService customUserDetailsService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final ResponseBuilder responseBuilder;
+    private final UserMapper userMapper;
+    private final RefreshTokenMapper refreshTokenMapper;
+    private final VerificationTokenService verificationTokenService;
+    private final MailService mailService;
+    private final OtpMapper otpMapper;
     Logger logger= LoggerFactory.getLogger(AuthServiceImpl.class);
 
     @Value("${otp.subject}")
@@ -65,128 +75,91 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.verification.token.expiry-minutes}")
     private Long verificationTokenExpiry;
 
-    public AuthServiceImpl(RefreshTokenRepository refreshTokenRepository,VerificationTokenRepository verificationTokenRepository,CustomUserDetailsService customUserDetailsService,JavaMailSender javaMailSender,OtpRepository otpRepository,PasswordEncoder passwordEncoder,UserRepository userRepository,AuthenticationManager authenticationManager,JwtUtil jwtUtil){
+    public AuthServiceImpl(OtpMapper otpMapper,RefreshTokenMapper refreshTokenMapper,MailService mailService,VerificationTokenService verificationTokenService,UserMapper userMapper,ResponseBuilder responseBuilder,RefreshTokenRepository refreshTokenRepository,VerificationTokenRepository verificationTokenRepository,CustomUserDetailsService customUserDetailsService,OtpRepository otpRepository,PasswordEncoder passwordEncoder,UserRepository userRepository,AuthenticationManager authenticationManager,JwtUtil jwtUtil){
         this.authenticationManager=authenticationManager;
         this.jwtUtil=jwtUtil;
         this.userRepository=userRepository;
         this.passwordEncoder=passwordEncoder;
         this.otpRepository=otpRepository;
-        this.javaMailSender=javaMailSender;
         this.customUserDetailsService=customUserDetailsService;
         this.verificationTokenRepository=verificationTokenRepository;
         this.refreshTokenRepository=refreshTokenRepository;
+        this.responseBuilder=responseBuilder;
+        this.userMapper=userMapper;
+        this.verificationTokenService=verificationTokenService;
+        this.mailService=mailService;
+        this.refreshTokenMapper=refreshTokenMapper;
+        this.otpMapper=otpMapper;
     }
 
     //registering user and sending verification link to the registered user
-    public ResponseEntity<ApiResponse<Map<String,String>>> register(EmailPasswordRegisterRequest registerRequestDto){
+    public ResponseEntity<ApiResponse<Map<String,String>>> register(EmailPasswordRegisterRequest emailPasswordRegisterRequest){
 
-        if(userRepository.existsByEmail(registerRequestDto.getEmail())){
+        if(userRepository.existsByEmail(emailPasswordRegisterRequest.getEmail())){
             ApiResponse<Map<String,String>> apiResponse=  ApiResponse.error(HttpStatus.CONFLICT.value(), null,"Email already exists.");
             return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
         }
 
-        User user = new User();
-        user.setName(registerRequestDto.getName());
-        user.setEmail(registerRequestDto.getEmail());
-        user.setPassword(passwordEncoder.encode(registerRequestDto.getPassword()));
-        user.setRole(Role.valueOf(registerRequestDto.getRole()));
+        User user=userMapper.toEntity(emailPasswordRegisterRequest);
         userRepository.save(user);
 
-        //verify the user email
-        String token = UUID.randomUUID().toString(); // generate a unique token
-        String tokenHash = passwordEncoder.encode(token); // hash the token
-        VerificationToken verificationToken = new VerificationToken();
-        verificationToken.setUser(user);
-        verificationToken.setTokenHash(tokenHash);
-        verificationToken.setTokenType(TokenType.EMAIL_VERIFICATION);
-        verificationToken.setExpiresAt(LocalDateTime.now().plusMinutes(verificationTokenExpiry)); // 30 minutes expiration
-        verificationToken.setCreatedAt(LocalDateTime.now());
+        String token=verificationTokenService.createAndSaveVerificationToken(user,TokenType.EMAIL_VERIFICATION);
 
-        // Save token to the database
-        verificationTokenRepository.save(verificationToken);
+        String verificationLink = "http://localhost:8080/api/auth/verify-email?userId="+user.getId()+"&&token="+ token;
 
-        String verificationLink = "http://localhost:8080/api/auth/verify-email?userId="+user.getId()+"&&token"+ token;
-
-        SimpleMailMessage simpleMailMessage=new SimpleMailMessage();
-        simpleMailMessage.setTo(user.getEmail());
-        simpleMailMessage.setSubject("Email verification");
-        simpleMailMessage.setText("Click the following link to verify:\n" + verificationLink);
-        javaMailSender.send(simpleMailMessage);
+        mailService.sendEmail(user.getEmail(),"Email verification","Click the following link to verify:\n" + verificationLink);
 
         ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.CREATED.value(), Collections.emptyMap(),"Registered please verify your mail");
         return new ResponseEntity<>(apiResponse,HttpStatus.CREATED);
-
     }
 
     //verifying email by token that is received while registering user and delete verification token from table
-    public ResponseEntity<ApiResponse<Map<String,String>>> verifyEmail(Long userId,String token){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> verifyEmail(Long userId,String token){
 
-    VerificationToken verificationToken=verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.EMAIL_VERIFICATION).orElseThrow(()-> new VerificationTokenNotFound("Email verification token not found"));
+       VerificationToken verificationToken=verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.EMAIL_VERIFICATION).orElseThrow(()-> new VerificationTokenNotFound("Email verification token not found"));
 
-    if(!passwordEncoder.matches(token,verificationToken.getTokenHash())){
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), "Invalid token"));
-    }
+       if(!passwordEncoder.matches(token,verificationToken.getTokenHash())){
+        throw new IllegalArgumentException("Invalid token");
+       }
 
-    if (verificationToken.getExpiresAt().isBefore(LocalDateTime.now()) || verificationToken.isUsed()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), "Token is expired or already used."));
-    }
+       if (verificationToken.getExpiresAt().isBefore(LocalDateTime.now()) || verificationToken.isUsed()) {
+        throw new IllegalArgumentException("Token is expired");
+       }
 
-    User user = verificationToken.getUser();
-    user.setEmailVerified(true);
-    userRepository.save(user);
+       User user = verificationToken.getUser();
+       user.setEmailVerified(true);
+       userRepository.save(user);
 
-    verificationTokenRepository.delete(verificationToken);
+       verificationTokenRepository.delete(verificationToken);
 
-    return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.success(HttpStatus.OK.value(), Collections.emptyMap(), "Verification successful"));
+       return responseBuilder.build(Collections.emptyMap(),"Verification successful");
     }
 
     //generating email verification token again if user does missed verification token while registering deleting old email verification token
     @Transactional
-    public ResponseEntity<ApiResponse<Map<String,String>>> resendEmailVerification(EmailRequest emailRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> resendEmailVerification(EmailRequest emailRequest){
           String email=emailRequest.getEmail();
           User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email"));
 
           if(user.isEmailVerified()){
-              ApiResponse<Map<String, String>> response = ApiResponse.error(
+              ApiResponse<Map<String, Object>> response = ApiResponse.error(
                       HttpStatus.BAD_REQUEST.value(), null, "Email is already verified");
               return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
           }
 
           verificationTokenRepository.deleteByUserIdAndTokenType(user.getId(),TokenType.EMAIL_VERIFICATION);
-
-          String token = UUID.randomUUID().toString(); // Plain token
-          String tokenHash = passwordEncoder.encode(token); // Hashed token
-
-          VerificationToken verificationToken = new VerificationToken();
-          verificationToken.setUser(user);
-          verificationToken.setTokenHash(tokenHash);
-          verificationToken.setTokenType(TokenType.EMAIL_VERIFICATION);
-          verificationToken.setExpiresAt(LocalDateTime.now().plusMinutes(verificationTokenExpiry));
-          verificationToken.setCreatedAt(LocalDateTime.now());
-
-          verificationTokenRepository.save(verificationToken);
+          String token=verificationTokenService.createAndSaveVerificationToken(user,TokenType.EMAIL_VERIFICATION);
 
           String verificationLink = "http://localhost:8080/api/auth/verify-email?userId="
                 + user.getId() +  "&&token=" + token;
 
-         SimpleMailMessage mail = new SimpleMailMessage();
-         mail.setTo(user.getEmail());
-         mail.setSubject("Resend Email Verification");
-         mail.setText("Click the following link to verify your email:\n" + verificationLink);
+          mailService.sendEmail(user.getEmail(),"Resend Email Verification","Click the following link to verify your email:\n" + verificationLink);
 
-         javaMailSender.send(mail);
-
-        ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
-                HttpStatus.OK.value(), Collections.emptyMap(), "Verification email resent successfully");
-
-        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+          return responseBuilder.build(Collections.emptyMap(),"Verification email resent successfully");
     }
 
     //login by email and password
-    public ResponseEntity<ApiResponse<Map<String,String>>> login(EmailPasswordLoginRequest emailPasswordLoginRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> login(EmailPasswordLoginRequest emailPasswordLoginRequest){
 
         User user=userRepository.findByEmail(emailPasswordLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
 
@@ -208,56 +181,40 @@ public class AuthServiceImpl implements AuthService {
         data.put("access_token",accessToken);
         data.put("refresh_token",refreshToken);
 
-        RefreshToken refreshTokenEntity=new RefreshToken();
-        refreshTokenEntity.setRefToken(refreshToken);
-        refreshTokenEntity.setCreatedAt(LocalDateTime.now());
-        refreshTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
-        refreshTokenEntity.setUser(user);
+        RefreshToken refreshTokenEntity=refreshTokenMapper.toEntity(user,refreshToken);
         refreshTokenRepository.save(refreshTokenEntity);
 
-
-        ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.CREATED.value(), data,"User Logged In");
-        return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
+        return responseBuilder.build("Tokens",data,"User Logged In");
     }
 
     //generating email otp
-    public ResponseEntity<ApiResponse<Map<String,String>>> generateEmailOtp(EmailOtpLoginRequest emailOtpLoginRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> generateEmailOtp(EmailOtpLoginRequest emailOtpLoginRequest){
 
         userRepository.findByEmail(emailOtpLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
         String randomOtp=String.valueOf(random.nextInt(900000)+100000);
 
-        Otp otp=new Otp();
-        otp.setEmail(emailOtpLoginRequest.getEmail());
-        otp.setOtp(randomOtp);
-        otp.setGeneratedAt(LocalDateTime.now());
-
+        Otp otp=otpMapper.toEntity(emailOtpLoginRequest.getEmail(),randomOtp);
         otpRepository.save(otp);
 
-        SimpleMailMessage simpleMailMessage=new SimpleMailMessage();
-        simpleMailMessage.setTo(emailOtpLoginRequest.getEmail());
-        simpleMailMessage.setSubject(otpSubject);
-        simpleMailMessage.setText(String.format(otpMessage,otp.getOtp()));
+        mailService.sendEmail(emailOtpLoginRequest.getEmail(),otpSubject,String.format(otpMessage,otp.getOtp()));
 
-        javaMailSender.send(simpleMailMessage);
-
-        ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.OK.value(), Collections.emptyMap(),"Otp send successfully");
-        return new ResponseEntity<>(apiResponse,HttpStatus.OK);
+        return responseBuilder.build(Collections.emptyMap(),"Otp send successfully");
 
     }
 
     //validating otp from otps table
-    public ResponseEntity<ApiResponse<Map<String,String>>> validateEmailOtp(EmailOtpVerifyRequest emailOtpVerifyRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> validateEmailOtp(EmailOtpVerifyRequest emailOtpVerifyRequest){
 
         User user=userRepository.findByEmail(emailOtpVerifyRequest.getEmail()).orElseThrow(()->new UserNotFound("User Not found with this email."));
         Otp otp=otpRepository.findTopByEmailOrderByGeneratedAtDesc(emailOtpVerifyRequest.getEmail()).orElseThrow(()-> new OtpNotFound("Otp not found for this email"));
 
         if (otp.getGeneratedAt().isBefore(LocalDateTime.now().minusMinutes(20))) {
-            ApiResponse<Map<String,String>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Otp expired");
+            ApiResponse<Map<String,Object>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Otp expired");
             return new ResponseEntity<>(apiResponse,HttpStatus.BAD_REQUEST);
         }
 
         if (!otp.getOtp().equals(emailOtpVerifyRequest.getOtp())) {
-            ApiResponse<Map<String,String>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Invalid otp");
+            ApiResponse<Map<String,Object>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Invalid otp");
             return new ResponseEntity<>(apiResponse,HttpStatus.BAD_REQUEST);
         }
 
@@ -267,24 +224,20 @@ public class AuthServiceImpl implements AuthService {
         String accessToken=jwtUtil.generateJwtToken(userDetails,user.getId(),accessTokenExpiration);
         String refreshToken=jwtUtil.generateJwtToken(userDetails,user.getId(),refreshTokenExpiration);
 
-        RefreshToken refreshTokenEntity=new RefreshToken();
-        refreshTokenEntity.setRefToken(refreshToken);
-        refreshTokenEntity.setCreatedAt(LocalDateTime.now());
-        refreshTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
-        refreshTokenEntity.setUser(user);
+        RefreshToken refreshTokenEntity=refreshTokenMapper.toEntity(user,refreshToken);
+
         refreshTokenRepository.save(refreshTokenEntity);
 
         Map<String,String> data=new HashMap<>();
         data.put("access_token",accessToken);
         data.put("refresh_token",refreshToken);
 
-        ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.OK.value(), data,"Login successfully");
-        return new ResponseEntity<>(apiResponse,HttpStatus.OK);
+        return responseBuilder.build("tokens",data,"Login Successfully");
     }
 
     //deleting refresh token from refresh_tokens table
     @Transactional
-    public ResponseEntity<ApiResponse<Map<String,String>>> logout(RefreshTokenRequest refreshTokenRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> logout(RefreshTokenRequest refreshTokenRequest){
 
         if(!jwtUtil.validateJwtToken(refreshTokenRequest.getRefreshToken())){
             throw new InvalidToken("token is invalid");
@@ -292,15 +245,14 @@ public class AuthServiceImpl implements AuthService {
 
         Long userId= jwtUtil.getUserIdFromToken(refreshTokenRequest.getRefreshToken());
 
-      refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Refresh token not found"));
-      refreshTokenRepository.deleteByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
+       refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Refresh token not found"));
+       refreshTokenRepository.deleteByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
 
-      ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.CREATED.value(), Collections.emptyMap(),"User logged out successfully");
-      return new ResponseEntity<>(apiResponse,HttpStatus.OK);
+      return responseBuilder.build(Collections.emptyMap(),"Logged out successfully");
     }
 
     //generating access token and refresh token on valid refresh token and deleting old refresh token
-    public ResponseEntity<ApiResponse<Map<String,String>>> refreshAccessToken(RefreshTokenRequest refreshTokenRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> refreshAccessToken(RefreshTokenRequest refreshTokenRequest){
 
           if(!jwtUtil.validateJwtToken(refreshTokenRequest.getRefreshToken())){
               throw new InvalidToken("token is invalid");
@@ -320,52 +272,33 @@ public class AuthServiceImpl implements AuthService {
           String accessToken=jwtUtil.generateJwtToken(userDetails,userId,accessTokenExpiration);
           String refreshToken=jwtUtil.generateJwtToken(userDetails,userId,refreshTokenExpiration);
 
-          oldRefreshToken.setRefToken(refreshToken);
-          oldRefreshToken.setCreatedAt(LocalDateTime.now());
-          oldRefreshToken.setExpiresAt(LocalDateTime.now().plusDays(7));
-          refreshTokenRepository.save(oldRefreshToken);
+          refreshTokenMapper.updateRefreshToken(oldRefreshToken,refreshToken);
 
           Map<String,String> data=new HashMap<>();
           data.put("access_token",accessToken);
           data.put("refresh_token",refreshToken);
 
-          ApiResponse<Map<String,String>> apiResponse=ApiResponse.success(HttpStatus.OK.value(), data,"New access and refresh tokens");
-          return new ResponseEntity<>(apiResponse,HttpStatus.OK);
+          return responseBuilder.build("Tokens",data,"New access and refresh tokens");
+
     }
 
     //generating password reset token for that user
-    public ResponseEntity<ApiResponse<Map<String,String>>> forgotPassword(EmailRequest emailRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> forgotPassword(EmailRequest emailRequest){
 
         User user = userRepository.findByEmail(emailRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email"));
 
-        //generate token
-        String token=UUID.randomUUID().toString();
-        String tokenHash=passwordEncoder.encode(token);
-
-        VerificationToken verificationToken=new VerificationToken();
-        verificationToken.setTokenHash(tokenHash);
-        verificationToken.setCreatedAt(LocalDateTime.now());
-        verificationToken.setExpiresAt(LocalDateTime.now().plusMinutes(verificationTokenExpiry));
-        verificationToken.setUsed(false);
-        verificationToken.setTokenType(TokenType.FORGOT_PASSWORD);
-        verificationToken.setUser(user);
-
-        verificationTokenRepository.save(verificationToken);
+        String token=verificationTokenService.createAndSaveVerificationToken(user,TokenType.FORGOT_PASSWORD);
 
         String resetLink = "http://localhost:8080/api/auth/reset-password?userId=" + user.getId() +
                 "&&token=" + token;
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(user.getEmail());
-        message.setSubject("Reset your password");
-        message.setText("Click the following link to reset your password:\n" + resetLink);
-        javaMailSender.send(message);
+        mailService.sendEmail(user.getEmail(),"Reset your password","Click the following link to reset your password:\n" + resetLink);
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), Collections.emptyMap(), "Password reset link sent"));
+        return responseBuilder.build(Collections.emptyMap(),"Password reset link sent");
     }
 
     //verifying reset password token delete it from verification_token table and update new password
-    public ResponseEntity<ApiResponse<Map<String,String>>> resetPassword(Long userId ,String token,String newPassword){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> resetPassword(Long userId ,String token,String newPassword){
 
         VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD).orElseThrow(()->new VerificationTokenNotFound("Password reset token not found"));
 
@@ -379,16 +312,14 @@ public class AuthServiceImpl implements AuthService {
                     .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), "Token expired or already used"));
         }
 
-        User user=verificationToken.getUser();
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-
+        userMapper.updatePassword(verificationToken.getUser(),newPassword);
         verificationTokenRepository.deleteByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), Collections.emptyMap(), "Password reset successful"));
+
+        return responseBuilder.build(Collections.emptyMap(),"Password reset successful");
     }
 
     //change password with the new password
-    public ResponseEntity<ApiResponse<Map<String,String>>> changePassword(ChangePasswordRequest changePasswordRequest){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> changePassword(ChangePasswordRequest changePasswordRequest){
         if (Objects.equals(changePasswordRequest.getNewPassword(), changePasswordRequest.getPassword())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     ApiResponse.error(
@@ -403,11 +334,11 @@ public class AuthServiceImpl implements AuthService {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), Collections.emptyMap(), "Current password is incorrect"));
         }
+
         user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
         userRepository.save(user);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(HttpStatus.OK.value(), Collections.emptyMap(), "Password changed successfully"));
+        return responseBuilder.build(Collections.emptyMap(),"Password changed successfully");
     }
 
 }

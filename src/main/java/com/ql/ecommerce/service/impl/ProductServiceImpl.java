@@ -19,14 +19,17 @@ import com.ql.ecommerce.repository.ProductVariantRepository;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.ProductService;
+import com.ql.ecommerce.service.RecentlyViewedService;
 import com.ql.ecommerce.specification.ProductSpecification;
 import com.ql.ecommerce.specification.ProductVariantSpecification;
+import com.ql.ecommerce.util.ResponseBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -46,8 +49,11 @@ public class ProductServiceImpl implements ProductService {
     private final ProductVariantMapper productVariantMapper;
     private final ProductSpecification productSpecification;
     private final ProductVariantSpecification productVariantSpecification;
+    private final RecentlyViewedService recentlyViewedService;
+    private final ResponseBuilder responseBuilder;
+    private final Logger logger= LoggerFactory.getLogger(ProductService.class);
 
-    public ProductServiceImpl(ProductVariantSpecification productVariantSpecification,ProductSpecification productSpecification,ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductMapper productMapper,ProductRepository productRepository,UserRepository userRepository,AuthUtil authUtil,CategoryRepository categoryRepository){
+    public ProductServiceImpl(ResponseBuilder responseBuilder,RecentlyViewedService recentlyViewedService,ProductVariantSpecification productVariantSpecification,ProductSpecification productSpecification,ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductMapper productMapper,ProductRepository productRepository,UserRepository userRepository,AuthUtil authUtil,CategoryRepository categoryRepository){
         this.categoryRepository=categoryRepository;
         this.authUtil=authUtil;
         this.userRepository=userRepository;
@@ -57,9 +63,11 @@ public class ProductServiceImpl implements ProductService {
         this.productVariantMapper=productVariantMapper;
         this.productSpecification=productSpecification;
         this.productVariantSpecification=productVariantSpecification;
+        this.recentlyViewedService=recentlyViewedService;
+        this.responseBuilder=responseBuilder;
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> createProduct(ProductDto productDto){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> createProduct(ProductDto productDto){
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email: "+email));
@@ -69,32 +77,19 @@ public class ProductServiceImpl implements ProductService {
               throw new Forbidden("Only sellers are allowed to perform this action.");
         }
 
-      Product product= Product.builder()
-              .name(productDto.getName())
-              .shortDescription(productDto.getShortDescription())
-              .fullDescription(productDto.getFullDescription())
-              .brand(productDto.getBrand())
-              .category(category)
-              .user(user)
-              .build();
+      Product product= productMapper.toEntity(productDto,category,user);
 
       Product createdProduct = productRepository.save(product);
       ProductDto createdProductDto =productMapper.toDto(createdProduct);
 
-      Map<String,ProductDto> data=new HashMap<>();
-      data.put("product",createdProductDto );
+      return responseBuilder.build("product",createdProductDto,"Product created successfully");
 
-      return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data,"Product created successfully"));
     }
 
-    public ResponseEntity<ApiResponse<Map<String,List<ProductDto>>>> getAllProducts(){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getAllProducts(){
         List<Product> products=productRepository.findAll();
         List<ProductDto> productDtos=productMapper.toDtoList(products);
-
-        Map<String,List<ProductDto>> data=new HashMap<>();
-        data.put("products",productDtos);
-
-        return ResponseEntity.ok(ApiResponse.error(HttpStatus.OK.value(),data,"Products fetched successfully"));
+        return responseBuilder.build("products",productDtos,"Products fetched successfully");
     }
 
     //page (default: 0)
@@ -120,7 +115,7 @@ public class ProductServiceImpl implements ProductService {
         data.put("pageSize", productPage.getSize());
         data.put("isLastPage", productPage.isLast());
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Products fetched successfully"));
+        return responseBuilder.build(data,"Products fetched successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByCategory(Long productId){
@@ -133,10 +128,8 @@ public class ProductServiceImpl implements ProductService {
 
         List<ProductDto> similarProductDtos=productMapper.toDtoList(similarProducts);
 
-        Map<String,Object> data=new HashMap<>();
-        data.put("similar products",similarProductDtos);
+        return responseBuilder.build("similar products",similarProductDtos,"Similar products by category fetched successfully");
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar products by category fetched successfully"));
     }
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByBrand(Long productId){
@@ -148,23 +141,33 @@ public class ProductServiceImpl implements ProductService {
 
         List<ProductDto> similarProductDtos=productMapper.toDtoList(similarProducts);
 
-        Map<String,Object> data=new HashMap<>();
-        data.put("similar products",similarProductDtos);
+        return responseBuilder.build("similar products",similarProductDtos,"Similar products by brand fetched successfully");
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar products by brand fetched successfully"));
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> getProductById(Long productId){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getProductById(Long productId){
         Product product=productRepository.findById(productId).orElseThrow(()-> new ProductNotFound("Product not found with this productId: "+productId));
         ProductDto productDto=productMapper.toDto(product);
 
-        Map<String,ProductDto> data=new HashMap<>();
-        data.put("product",productDto);
+        String email=authUtil.getCurrentUserEmail();
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
 
-        return ResponseEntity.ok(ApiResponse.error(HttpStatus.OK.value(),data,"Product fetched successfully"));
+        logger.info("adding userId :{} and productId :{} in redis.",user.getId(),product.getId());
+        recentlyViewedService.addToRecentlyViewedProducts(user.getId(), productDto);
+        logger.info("added userId :{} and productId :{} in redis.",user.getId(),product.getId());
+
+        return responseBuilder.build("product",productDto,"Product fetched successfully");
+
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> updateProduct(Long productId, ProductDto productDto){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProducts(){
+        String email=authUtil.getCurrentUserEmail();
+        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+        List<ProductDto> productDtos=recentlyViewedService.getRecentlyViewedProducts(user.getId());
+        return responseBuilder.build("products",productDtos,"All recently viewed products");
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,Object>>> updateProduct(Long productId, ProductDto productDto){
 
         String email= authUtil.getCurrentUserEmail();
         Product product=productRepository.findById(productId).orElseThrow(()-> new ProductNotFound("Product not found with this productId "+productId));
@@ -177,25 +180,17 @@ public class ProductServiceImpl implements ProductService {
         Category category = categoryRepository.findById(productDto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFound("Category not found with id: " + productDto.getCategoryId()));
 
-
-        product.setName(productDto.getName());
-        product.setShortDescription(productDto.getShortDescription());
-        product.setFullDescription(productDto.getFullDescription());
-        product.setBrand(productDto.getBrand());
-        product.setCategory(category);
+        productMapper.updateProduct(product,productDto,category);
 
         Product updatedProduct = productRepository.save(product);
         ProductDto updatedProductDto = productMapper.toDto(updatedProduct);
 
 
-        Map<String, ProductDto> data = new HashMap<>();
-        data.put("product", updatedProductDto);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Product updated successfully"));
+        return responseBuilder.build("product",updatedProductDto,"Product updated successfully");
 
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> deleteProduct(Long productId) {
+    public ResponseEntity<ApiResponse<Map<String,Object>>> deleteProduct(Long productId) {
 
         String email = authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
@@ -208,32 +203,20 @@ public class ProductServiceImpl implements ProductService {
         }
 
         ProductDto productDto=productMapper.toDto(product);
-        Map<String,ProductDto> data=new HashMap<>();
-        data.put("product",productDto);
-
         productRepository.delete(product);
 
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(), data, "Product deleted successfully"
-        ));
+        return responseBuilder.build("product",productDto,"Product deleted successfully");
 
     }
 
-    public ResponseEntity<ApiResponse<Map<String, List<ProductVariantDto>>>> getProductVariantsByProductId(Long productId ){
-
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getProductVariantsByProductId(Long productId ){
         Product product=productRepository.findById(productId).orElseThrow(()-> new ProductNotFound("product not found with this productId "+productId));
-
         List<ProductVariant> productVariants=product.getVariants();
         List<ProductVariantDto> productVariantDtos=productVariantMapper.toDtoList(productVariants);
-
-        Map<String,List<ProductVariantDto>> data=new HashMap<>();
-        data.put("product variants",productVariantDtos);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),data,"Product variants fetched successfully"));
-
+        return responseBuilder.build("product variants",productVariantDtos,"Product variants fetched successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantsByProductIdV1( ProductVariantFilter filter ){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getProductVariantsByProductIdV1( ProductVariantFilter filter ){
 
         Sort sort = filter.getDirection().equalsIgnoreCase("asc") ? Sort.by(filter.getSortBy()).ascending() : Sort.by(filter.getSortBy()).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
@@ -258,23 +241,20 @@ public class ProductServiceImpl implements ProductService {
         data.put("pageSize", pageResult.getSize());
         data.put("isLastPage", pageResult.isLast());
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Product Variants fetched successfully"));
+        return responseBuilder.build(data,"Product Variants fetched successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariantsByProductVariantId(Long productVariantId){
-
        ProductVariant productVariant=productVariantRepository.findById(productVariantId).orElseThrow(()-> new ProductVariantNotFound("product variant not found with this product variant id "+productVariantId));
        List<ProductVariant> productVariants=productVariantRepository.findByProductIdAndIdNot(productVariant.getProduct().getId(),productVariantId);
-
        List<ProductVariantDto> productVariantDtos=productVariantMapper.toDtoList(productVariants);
-
-       Map<String,Object> data=new HashMap<>();
-       data.put("similar product variants",productVariantDtos);
-
-       return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Similar product Variants fetched successfully"));
+       return responseBuilder.build("similar product variants",productVariantDtos,"Similar product Variants fetched successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> getProductVariantByVariantId(Long productId, Long productVariantId){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getProductVariantByVariantId(Long productId, Long productVariantId){
+
+        String email=authUtil.getCurrentUserEmail();
+        User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email "+email));
 
         ProductVariant productVariant=productVariantRepository.findById(productVariantId).orElseThrow(()->new ProductVariantNotFound("Product variant not found with this is "+productVariantId));
 
@@ -283,11 +263,17 @@ public class ProductServiceImpl implements ProductService {
         }
 
         ProductVariantDto productVariantDto=productVariantMapper.toDto(productVariant);
+        recentlyViewedService.addToRecentlyViewedVariants(user.getId(),productVariantDto);
 
-        Map<String,ProductVariantDto> data=new HashMap<>();
-        data.put("product variant",productVariantDto);
+        return responseBuilder.build("product variant",productVariantDto,"Product variant fetched successfully");
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Product variant fetched successfully"));
+    }
+
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProductVariants(){
+         String email=authUtil.getCurrentUserEmail();
+         User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email "+email));
+         List<ProductVariantDto> productVariantDtos=recentlyViewedService.getRecentlyViewedVariants(user.getId());
+         return responseBuilder.build("product variants",productVariantDtos,"All recently viewed product variants");
     }
 
 }

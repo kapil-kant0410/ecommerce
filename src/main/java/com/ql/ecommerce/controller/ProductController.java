@@ -7,7 +7,6 @@ import com.ql.ecommerce.dto.product.filter.ProductFilter;
 import com.ql.ecommerce.dto.product.response.ProductDto;
 import com.ql.ecommerce.service.ProductService;
 import jakarta.validation.Valid;
-import org.modelmapper.internal.bytebuddy.implementation.bind.annotation.Default;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,12 +24,12 @@ public class ProductController {
     }
 
     @PostMapping()
-    public ResponseEntity<ApiResponse<Map<String, ProductDto>>> createProduct(@Valid @RequestBody ProductDto productDto){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createProduct(@Valid @RequestBody ProductDto productDto){
           return productService.createProduct(productDto);
     }
 
     @GetMapping()
-    ResponseEntity<ApiResponse<Map<String, List<ProductDto>>>> getAllProducts(){
+    ResponseEntity<ApiResponse<Map<String, Object>>> getAllProducts(){
         return productService.getAllProducts();
     }
 
@@ -50,22 +49,27 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<ApiResponse<Map<String,ProductDto>>> getProductById(@PathVariable Long productId){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getProductById(@PathVariable Long productId){
         return productService.getProductById(productId);
     }
 
+    @GetMapping("/recently-viewed")
+    ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProducts(){
+        return productService.getRecentlyViewedProducts();
+    }
+
     @PutMapping("/{productId}")
-    ResponseEntity<ApiResponse<Map<String,ProductDto>>> updateProduct(@PathVariable Long productId,@RequestBody @Valid ProductDto productDto){
+    ResponseEntity<ApiResponse<Map<String,Object>>> updateProduct(@PathVariable Long productId,@RequestBody @Valid ProductDto productDto){
         return productService.updateProduct(productId,productDto);
     }
 
     @DeleteMapping("/{productId}")
-    ResponseEntity<ApiResponse<Map<String,ProductDto>>> deleteProduct(@PathVariable Long productId){
+    ResponseEntity<ApiResponse<Map<String,Object>>> deleteProduct(@PathVariable Long productId){
         return productService.deleteProduct(productId);
     }
 
     @GetMapping("/{productId}/variants")
-    public ResponseEntity<ApiResponse<Map<String, List<ProductVariantDto>>>> getProductVariantsByProductId(@PathVariable Long productId){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantsByProductId(@PathVariable Long productId){
         return productService.getProductVariantsByProductId(productId);
     }
 
@@ -77,14 +81,19 @@ public class ProductController {
         return productService.getProductVariantsByProductIdV1(filter);
     }
 
-    @GetMapping("/{productVariantId}/other-variants")
+    @GetMapping("/product-variant/{productVariantId}/other-variants")
     public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariants(@PathVariable Long productVariantId) {
         return productService.getOtherVariantsByProductVariantId(productVariantId);
     }
 
     @GetMapping("/{productId}/product-variant/{productVariantId}")
-    public ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> getProductVariantByVariantId(@PathVariable Long productId,@PathVariable Long productVariantId){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantByVariantId(@PathVariable Long productId,@PathVariable Long productVariantId){
            return productService.getProductVariantByVariantId(productId,productVariantId);
+    }
+
+    @GetMapping("/product-variant/recently-viewed")
+    ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProductVariants(){
+          return productService.getRecentlyViewedProductVariants();
     }
 
 }

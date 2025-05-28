@@ -11,8 +11,8 @@ import java.util.Map;
 
 @Service
 public interface UserService {
-    ResponseEntity<ApiResponse<Map<String, List<UserDto>>>> getAllUsers();
-    ResponseEntity<ApiResponse<Map<String, UserDto>>> getCurrentUser();
-    ResponseEntity<ApiResponse<Map<String,UserDto>>> updateCurrentUser(UserUpdate userUpdate);
-    ResponseEntity<ApiResponse<Map<String, String>>> deleteCurrentUser();
+    ResponseEntity<ApiResponse<Map<String,Object>>> getAllUsers();
+    ResponseEntity<ApiResponse<Map<String,Object>>> getCurrentUser();
+    ResponseEntity<ApiResponse<Map<String, Object>>> updateCurrentUser(UserUpdate userUpdate);
+    ResponseEntity<ApiResponse<Map<String, Object>>> deleteCurrentUser();
 }
