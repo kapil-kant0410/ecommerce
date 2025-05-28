@@ -185,7 +185,6 @@ public class ProductServiceImpl implements ProductService {
         Product updatedProduct = productRepository.save(product);
         ProductDto updatedProductDto = productMapper.toDto(updatedProduct);
 
-
         return responseBuilder.build("product",updatedProductDto,"Product updated successfully");
 
     }

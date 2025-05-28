@@ -20,17 +20,17 @@ public class productVariantController {
     }
 
     @PostMapping()
-    ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> createProductVariant(@RequestBody @Valid ProductVariantDto productVariantDto){
+    ResponseEntity<ApiResponse<Map<String,Object>>> createProductVariant(@RequestBody @Valid ProductVariantDto productVariantDto){
        return productVariantService.createProductVariant(productVariantDto);
     }
 
     @PutMapping("/{productVariantId}")
-    ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> updateProductVariant(@PathVariable Long productVariantId,@RequestBody @Valid ProductVariantDto productVariantDto){
+    ResponseEntity<ApiResponse<Map<String,Object>>> updateProductVariant(@PathVariable Long productVariantId,@RequestBody @Valid ProductVariantDto productVariantDto){
         return productVariantService.updateProductVariant(productVariantId,productVariantDto);
     }
 
     @DeleteMapping("/{productVariantId}")
-    ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> deleteProductVariant(@PathVariable Long productVariantId){
+    ResponseEntity<ApiResponse<Map<String,Object>>> deleteProductVariant(@PathVariable Long productVariantId){
         return productVariantService.deleteProductVariant(productVariantId);
     }
 

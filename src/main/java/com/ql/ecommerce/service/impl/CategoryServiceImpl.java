@@ -7,6 +7,7 @@ import com.ql.ecommerce.exception.ResourceNotFound;
 import com.ql.ecommerce.mapper.CategoryMapper;
 import com.ql.ecommerce.repository.CategoryRepository;
 import com.ql.ecommerce.service.CategoryService;
+import com.ql.ecommerce.util.ResponseBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -20,34 +21,26 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
+    private final ResponseBuilder responseBuilder;
 
-    public CategoryServiceImpl(CategoryMapper categoryMapper,CategoryRepository categoryRepository){
+    public CategoryServiceImpl(ResponseBuilder responseBuilder,CategoryMapper categoryMapper,CategoryRepository categoryRepository){
         this.categoryRepository=categoryRepository;
         this.categoryMapper=categoryMapper;
+        this.responseBuilder=responseBuilder;
     }
 
-    public ResponseEntity<ApiResponse<Map<String,List<CategoryDto>>>> getAllCategories(){
-
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getAllCategories(){
           List<Category> categories=categoryRepository.findAll();
           List<CategoryDto> categoryDtos=categoryMapper.toDtoList(categories);
 
-          Map<String, List<CategoryDto>> data=new HashMap<>();
-          data.put("category",categoryDtos);
-
-          return ResponseEntity.ok( ApiResponse.success(HttpStatus.OK.value(),data,"Categories fetched successfully"));
+          return responseBuilder.build("Category",categoryDtos,"Categories fetched successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String,CategoryDto>>> getCategoryById(Long categoryId){
-
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getCategoryById(Long categoryId){
         Category category=categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFound("Category not found with id:"+categoryId));
-
         CategoryDto categoryDto=categoryMapper.toDto(category);
 
-        Map<String,CategoryDto> data=new HashMap<>();
-        data.put("category",categoryDto);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data, "Category fetched successfully"));
+        return responseBuilder.build("Category",categoryDto,"Category fetched successfully");
     }
-
 
 }

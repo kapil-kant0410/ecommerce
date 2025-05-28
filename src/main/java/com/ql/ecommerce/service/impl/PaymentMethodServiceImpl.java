@@ -3,6 +3,7 @@ package com.ql.ecommerce.service.impl;
 import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.paymentMethod.PaymentMethodRequestDto;
 import com.ql.ecommerce.dto.paymentMethod.PaymentMethodResponseDto;
+import com.ql.ecommerce.dto.paymentMethod.UpdatePaymentMethodRequestDto;
 import com.ql.ecommerce.exception.Forbidden;
 import com.ql.ecommerce.exception.PaymentMethodNotFound;
 import com.ql.ecommerce.mapper.PaymentMethodMapper;
@@ -10,15 +11,13 @@ import com.ql.ecommerce.repository.PaymentMethodRepository;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.PaymentMethodService;
-import org.springframework.http.HttpStatus;
+import com.ql.ecommerce.util.ResponseBuilder;
 import org.springframework.http.ResponseEntity;
 import com.ql.ecommerce.entity.User;
 import com.ql.ecommerce.entity.PaymentMethod;
 import com.ql.ecommerce.exception.UserNotFound;
 import org.springframework.stereotype.Service;
 
-
-import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 
@@ -29,12 +28,14 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     private final UserRepository userRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentMethodMapper paymentMethodMapper;
+    private final ResponseBuilder responseBuilder;
 
-    public PaymentMethodServiceImpl(PaymentMethodMapper paymentMethodMapper,PaymentMethodRepository paymentMethodRepository,UserRepository userRepository,AuthUtil authUtil){
+    public PaymentMethodServiceImpl(ResponseBuilder responseBuilder,PaymentMethodMapper paymentMethodMapper,PaymentMethodRepository paymentMethodRepository,UserRepository userRepository,AuthUtil authUtil){
         this.authUtil=authUtil;
         this.userRepository=userRepository;
         this.paymentMethodRepository=paymentMethodRepository;
         this.paymentMethodMapper=paymentMethodMapper;
+        this.responseBuilder=responseBuilder;
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPaymentMethods() {
@@ -47,14 +48,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         List<PaymentMethod> paymentMethods=paymentMethodRepository.findByUserId(user.getId());
         List<PaymentMethodResponseDto> paymentMethodResponseDtos=paymentMethodMapper.toDtoList(paymentMethods);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("payment methods", paymentMethodResponseDtos);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "User payment methods fetched successfully"
-        ));
+        return responseBuilder.build("Payment methods",paymentMethodResponseDtos,"User payment methods fetched successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> addPaymentMethod(PaymentMethodRequestDto paymentMethodRequestDto){
@@ -66,18 +60,10 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         paymentMethodRepository.save(paymentMethod);
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("payment methods", paymentMethodResponseDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "User payment methods fetched successfully"
-        ));
-
+        return responseBuilder.build("Payment methods",paymentMethodResponseDto,"User payment methods fetched successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updatePaymentMethod(Long paymentMethodId, PaymentMethodRequestDto paymentMethodRequestDto) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updatePaymentMethod(Long paymentMethodId, UpdatePaymentMethodRequestDto updatePaymentMethodRequestDto) {
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
@@ -87,22 +73,12 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
             throw new Forbidden("You cannot update another user's payment method");
         }
 
-        paymentMethod.setType(paymentMethodRequestDto.getType());
-        paymentMethod.setExpiryDate(paymentMethod.getExpiryDate());
-
+        paymentMethod.setExpiryDate(updatePaymentMethodRequestDto.getExpiryDate());
         paymentMethodRepository.save(paymentMethod);
 
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("payment method", paymentMethodResponseDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Payment method updated successfully"
-        ));
-
+        return responseBuilder.build("Payment method",paymentMethodResponseDto,"Payment method updated successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> deletePaymentMethod(Long paymentMethodId){
@@ -117,15 +93,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         paymentMethodRepository.delete(paymentMethod);
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("payment method", paymentMethodResponseDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Payment method deleted successfully"
-        ));
-
+        return responseBuilder.build("Payment method",paymentMethodResponseDto,"Payment method deleted successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> markAsDefaultPaymentMethod(Long paymentMethodId){
@@ -137,11 +105,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
                 .orElseThrow(() -> new PaymentMethodNotFound("Payment method not found with id: " + paymentMethodId));
 
         if(paymentMethod.isDefault()){
-            return ResponseEntity.ok(ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    null,
-                    "This payment method is already set as default."
-            ));
+            throw new IllegalArgumentException("This payment method is already set as default.");
         }
 
         if (!paymentMethod.getUser().getId().equals(user.getId())) {
@@ -161,17 +125,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
 
         PaymentMethodResponseDto paymentMethodResponseDto = paymentMethodMapper.toDto(paymentMethod);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("default payment method", paymentMethodResponseDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Default payment method updated successfully"
-        ));
-
+        return responseBuilder.build("Payment method",paymentMethodResponseDto,"Default payment method updated successfully");
     }
-
-
 
 }

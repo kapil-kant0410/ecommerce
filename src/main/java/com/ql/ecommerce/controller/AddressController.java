@@ -21,32 +21,32 @@ public class AddressController {
     }
 
     @GetMapping("/me/addresses")
-    ResponseEntity<ApiResponse<Map<String, List<AddressDto>>>> getCurrentUserAddresses(){
+    ResponseEntity<ApiResponse<Map<String,Object>>> getCurrentUserAddresses(){
         return addressService.getCurrentUserAddresses();
     }
 
     @PostMapping("/me/addresses")
-    ResponseEntity<ApiResponse<Map<String, AddressDto>>> addAddressForCurrentUser(@Valid @RequestBody AddressDto addressDto){
+    ResponseEntity<ApiResponse<Map<String, Object>>> addAddressForCurrentUser(@Valid @RequestBody AddressDto addressDto){
             return addressService.addAddressForCurrentUser(addressDto);
     }
 
     @GetMapping("/me/addresses/{addressId}")
-    public ResponseEntity<ApiResponse<Map<String,AddressDto>>> getAddressForCurrentUser(@PathVariable Long addressId){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getAddressForCurrentUser(@PathVariable Long addressId){
            return addressService.getAddressForCurrentUser(addressId);
     }
 
     @PutMapping("/me/addresses/{addressId}")
-    ResponseEntity<ApiResponse<Map<String, AddressDto>>> updateAddressForCurrentUser(@PathVariable Long addressId, @Valid @RequestBody AddressDto addressDto){
+    ResponseEntity<ApiResponse<Map<String, Object>>> updateAddressForCurrentUser(@PathVariable Long addressId, @Valid @RequestBody AddressDto addressDto){
           return addressService.updateAddressForCurrentUser(addressId,addressDto);
     }
 
     @DeleteMapping("/me/addresses/{addressId}")
-    ResponseEntity<ApiResponse<Map<String, AddressDto>>> deleteAddressForCurrentUser(@PathVariable Long addressId){
+    ResponseEntity<ApiResponse<Map<String, Object>>> deleteAddressForCurrentUser(@PathVariable Long addressId){
           return addressService.deleteAddressForCurrentUser(addressId);
     }
 
     @PatchMapping("/me/addresses/{addressId}/set-default")
-    public ResponseEntity<ApiResponse<Map<String, AddressDto>>> setDefaultAddressForCurrentUser(@PathVariable Long addressId){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> setDefaultAddressForCurrentUser(@PathVariable Long addressId){
          return addressService.setDefaultAddressForCurrentUser(addressId);
     }
 

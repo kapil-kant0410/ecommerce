@@ -20,7 +20,6 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,7 +44,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Map<String,String>>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), ex.getMessage()));
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null, ex.getMessage()));
     }
 
     //No endpoint for the given requested endpoint

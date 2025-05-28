@@ -13,6 +13,7 @@ import com.ql.ecommerce.repository.ProductVariantRepository;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.CartService;
+import com.ql.ecommerce.util.ResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,18 +35,20 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final CartItemMapper cartItemMapper;
+    private final ResponseBuilder responseBuilder;
     private final Logger logger= LoggerFactory.getLogger(CartServiceImpl.class);
 
-    public CartServiceImpl(CartItemMapper cartItemMapper,CartItemRepository cartItemRepository,CartRepository cartRepository,ProductVariantRepository productVariantRepository,UserRepository userRepository, AuthUtil authUtil){
+    public CartServiceImpl(ResponseBuilder responseBuilder,CartItemMapper cartItemMapper,CartItemRepository cartItemRepository,CartRepository cartRepository,ProductVariantRepository productVariantRepository,UserRepository userRepository, AuthUtil authUtil){
         this.authUtil=authUtil;
         this.userRepository=userRepository;
         this.productVariantRepository=productVariantRepository;
         this.cartRepository=cartRepository;
         this.cartItemRepository=cartItemRepository;
         this.cartItemMapper=cartItemMapper;
+        this.responseBuilder=responseBuilder;
     }
 
-    public ResponseEntity<ApiResponse<Map<String, List<CartItemDto>>>> getCurrentUserCart(){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUserCart(){
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email "+email));
@@ -59,18 +62,10 @@ public class CartServiceImpl implements CartService {
         List<CartItem> cartItems=cartItemRepository.findByCart(cart);
         List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
 
-        Map<String, List<CartItemDto>> data = new HashMap<>();
-        data.put("cart_items", cartItemDtos);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Cart fetched successfully"
-        ));
-
+        return responseBuilder.build("Cart items",cartItemDtos,"Cart fetched successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String,CartItemDto>>> addItemToCart(AddToCartRequestDto addToCartRequestDto){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> addItemToCart(AddToCartRequestDto addToCartRequestDto){
 
         String email = authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
@@ -89,16 +84,12 @@ public class CartServiceImpl implements CartService {
             throw new BadRequest("Only " + availableQty + " items available in stock");
         }
 
-        logger.info("user id which user insert the item in the cart :{}",user.getId());
-
         Cart cart = cartRepository.findByUser(user)
                 .orElseGet(()->{
                     Cart newCart=new Cart();
                     newCart.setUser(user);
                     return cartRepository.save(newCart);
                 });
-
-        logger.info("cart id of user in which item will insert :{}",cart.getId());
 
         Optional<CartItem> existingItemOpt=cartItemRepository.findByCartAndProductVariant(cart,productVariant);
         CartItem savedItem;
@@ -122,18 +113,10 @@ public class CartServiceImpl implements CartService {
 
         CartItemDto cartItemDto=cartItemMapper.toDto(savedItem);
 
-        Map<String, CartItemDto> data = new HashMap<>();
-        data.put("cart_item", cartItemDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Item added to cart successfully"
-        ));
-
+        return responseBuilder.build("Cart item",cartItemDto,"Item added to cart successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String,CartItemDto>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto){
 
           String email=authUtil.getCurrentUserEmail();
 
@@ -145,9 +128,9 @@ public class CartServiceImpl implements CartService {
               throw new  Forbidden("User not allowed to update this cart");
           }
 
-        if (addToCartRequestDto.getQuantity() > productVariant.getStockQuantity()) {
+          if (addToCartRequestDto.getQuantity() > productVariant.getStockQuantity()) {
             throw new BadRequest("Requested quantity exceeds available stock");
-        }
+          }
 
         Long existingQty = cartItem.getQuantity();
         Long newQty = addToCartRequestDto.getQuantity();
@@ -163,16 +146,7 @@ public class CartServiceImpl implements CartService {
 
         CartItemDto cartItemDto=cartItemMapper.toDto(cartItem);
 
-        Map<String, CartItemDto> data = new HashMap<>();
-        data.put("cart_item", cartItemDto);
-
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "cart item updated successfully"
-        ));
-
+        return responseBuilder.build("Cart item",cartItemDto,"cart item quantity updated successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> removeCartItem(Long cartItemId){
@@ -193,15 +167,7 @@ public class CartServiceImpl implements CartService {
 
         CartItemDto cartItemDto=cartItemMapper.toDto(cartItem);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("deleted_cart_item", cartItemDto);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Cart item removed successfully"
-        ));
-
+        return responseBuilder.build("Deleted cart item",cartItemDto,"Cart item removed successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> clearCart(){
@@ -209,27 +175,22 @@ public class CartServiceImpl implements CartService {
         String email=authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
+
         Cart cart=user.getCart();
-       if (cart == null) {
+
+        if (cart == null) {
            throw new CartNotFound("Cart not found for user: " + email);
-       }
-       List<CartItem> cartItems=cartItemRepository.findByCart(cart);
-       if (cartItems.isEmpty()) {
+        }
+
+        List<CartItem> cartItems=cartItemRepository.findByCart(cart);
+
+        if (cartItems.isEmpty()) {
            throw new BadRequest("Cart is already empty");
-       }
-       List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
+        }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("deleted_cart_items", cartItemDtos);
+        List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
 
-        cartItemRepository.deleteAll(cartItems);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "All cart items cleared successfully"
-        ));
-
+        return responseBuilder.build("Deleted cart items",cartItemDtos,"All cart items cleared successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCartSummary(){
@@ -260,15 +221,7 @@ public class CartServiceImpl implements CartService {
                 .total(total)
                 .build();
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("summary", summary);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                data,
-                "Cart summary fetched successfully"
-        ));
-
+        return responseBuilder.build("Summary",summary,"Cart summary fetched successfully");
     }
 
 }

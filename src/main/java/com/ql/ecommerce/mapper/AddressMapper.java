@@ -1,6 +1,7 @@
 package com.ql.ecommerce.mapper;
 
 import com.ql.ecommerce.dto.address.response.AddressDto;
+import com.ql.ecommerce.repository.AddressRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Component;
 import com.ql.ecommerce.entity.Address;
@@ -10,10 +11,12 @@ import java.util.List;
 @Component
 public class AddressMapper {
 
+    private final AddressRepository addressRepository;
     private final ModelMapper modelMapper;
 
-    public AddressMapper(ModelMapper modelMapper){
+    public AddressMapper(ModelMapper modelMapper,AddressRepository addressRepository){
         this.modelMapper=modelMapper;
+        this.addressRepository=addressRepository;
     }
 
     public AddressDto toDto(Address address){
@@ -29,5 +32,16 @@ public class AddressMapper {
     }
 
     public List<Address> toEntityList(List<AddressDto> addressDtoList){return addressDtoList.stream().map((this::toEntity)).toList();}
+
+    public Address updateAddress(Address existingAddress,AddressDto addressDto){
+        existingAddress.setCity(addressDto.getCity());
+        existingAddress.setCountry(addressDto.getCountry());
+        existingAddress.setPostalCode(addressDto.getPostalCode());
+        existingAddress.setState(addressDto.getState());
+        existingAddress.setStreet(addressDto.getStreet());
+
+        Address updatedAddress=addressRepository.save(existingAddress);
+        return updatedAddress;
+    }
 
 }

@@ -22,17 +22,17 @@ public class CartController {
     }
 
     @GetMapping()
-    ResponseEntity<ApiResponse<Map<String, List<CartItemDto>>>> getCurrentUserCart(){
+    ResponseEntity<ApiResponse<Map<String,Object>>> getCurrentUserCart(){
           return cartService.getCurrentUserCart();
     }
 
     @PostMapping()
-    ResponseEntity<ApiResponse<Map<String,CartItemDto>>> addItemToCart(@Valid @RequestBody AddToCartRequestDto addToCartRequestDto){
+    ResponseEntity<ApiResponse<Map<String,Object>>> addItemToCart(@Valid @RequestBody AddToCartRequestDto addToCartRequestDto){
          return cartService.addItemToCart(addToCartRequestDto);
     }
 
     @PutMapping("/{cartId}")
-    ResponseEntity<ApiResponse<Map<String,CartItemDto>>> updateCartItemQuantity (@PathVariable Long cartId,@Valid @RequestBody AddToCartRequestDto addToCartRequestDto){
+    ResponseEntity<ApiResponse<Map<String,Object>>> updateCartItemQuantity (@PathVariable Long cartId,@Valid @RequestBody AddToCartRequestDto addToCartRequestDto){
         return cartService.updateCartItemQuantity(cartId,addToCartRequestDto);
     }
 

@@ -13,6 +13,7 @@ import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.ProductVariantService;
 
+import com.ql.ecommerce.util.ResponseBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -28,16 +29,18 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     private final AuthUtil authUtil;
     private final ProductRepository productRepository;
     private final ProductVariantMapper productVariantMapper;
+    private final ResponseBuilder responseBuilder;
 
-    public ProductVariantServiceImpl(ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductRepository productRepository,UserRepository userRepository,AuthUtil authUtil){
+    public ProductVariantServiceImpl(ResponseBuilder responseBuilder,ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductRepository productRepository,UserRepository userRepository,AuthUtil authUtil){
         this.authUtil=authUtil;
         this.userRepository=userRepository;
         this.productRepository=productRepository;
         this.productVariantRepository=productVariantRepository;
         this.productVariantMapper=productVariantMapper;
+        this.responseBuilder=responseBuilder;
     }
 
-    public ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> createProductVariant(ProductVariantDto productVariantDto){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createProductVariant(ProductVariantDto productVariantDto){
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email: "+email));
@@ -51,13 +54,10 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         ProductVariant productVariant=productVariantMapper.toEntity(product,productVariantDto);
         productVariantRepository.save(productVariant);
 
-        Map<String,ProductVariantDto> data=new HashMap<>();
-        data.put("product_variant",productVariantDto);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data,"Product variant created successfully"));
+        return responseBuilder.build("Product variant",productVariantDto,"Product variant created successfully");
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> updateProductVariant(Long productVariantId,ProductVariantDto productVariantDto){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> updateProductVariant(Long productVariantId,ProductVariantDto productVariantDto){
 
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
@@ -70,14 +70,11 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         productVariantMapper.updateEntity(productVariantDto,productVariant);
         productVariantRepository.save(productVariant);
 
-        Map<String,ProductVariantDto> data=new HashMap<>();
-        data.put("product_variant",productVariantDto);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), data,"Product variant updated successfully"));
+        return responseBuilder.build("Product variant",productVariantDto,"Product variant updated successfully");
 
     }
 
-    public ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> deleteProductVariant(Long productVariantId) {
+    public ResponseEntity<ApiResponse<Map<String,Object>>> deleteProductVariant(Long productVariantId) {
         String email = authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
@@ -92,12 +89,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         ProductVariantDto productVariantDto=productVariantMapper.toDto(productVariant);
         productVariantRepository.delete(productVariant);
 
-        Map<String,ProductVariantDto> data=new HashMap<>();
-        data.put("product variant",productVariantDto);
-
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-                          data,
-                "Product variant with ID " + productVariantId + " has been deleted"));
+        return responseBuilder.build("Product variant",productVariantDto,"Product variant with ID " + productVariantId + " has been deleted");
     }
 
 }

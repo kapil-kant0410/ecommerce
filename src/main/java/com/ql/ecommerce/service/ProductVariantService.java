@@ -9,8 +9,8 @@ import java.util.Map;
 
 @Service
 public interface ProductVariantService {
-     ResponseEntity<ApiResponse<Map<String, ProductVariantDto>>> createProductVariant(ProductVariantDto productVariantDto);
-     ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> updateProductVariant(Long productVariantId,ProductVariantDto productVariantDto);
-     ResponseEntity<ApiResponse<Map<String,ProductVariantDto>>> deleteProductVariant(Long productVariantId);
+     ResponseEntity<ApiResponse<Map<String,Object>>> createProductVariant(ProductVariantDto productVariantDto);
+     ResponseEntity<ApiResponse<Map<String,Object>>> updateProductVariant(Long productVariantId,ProductVariantDto productVariantDto);
+     ResponseEntity<ApiResponse<Map<String,Object>>> deleteProductVariant(Long productVariantId);
 }
 

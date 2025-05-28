@@ -23,12 +23,12 @@ public class CategoryController {
     }
 
     @GetMapping()
-    public ResponseEntity<ApiResponse<Map<String, List<CategoryDto>>>> getAllCategories(){
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAllCategories(){
         return categoryService.getAllCategories();
     }
 
     @GetMapping("/{categoryId}")
-    public ResponseEntity<ApiResponse<Map<String,CategoryDto>>> getCategoryById(@PathVariable Long categoryId){
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getCategoryById(@PathVariable Long categoryId){
          return categoryService.getCategoryById(categoryId);
     }
 

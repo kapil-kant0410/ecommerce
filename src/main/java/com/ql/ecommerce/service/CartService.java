@@ -11,10 +11,10 @@ import java.util.Map;
 
 @Service
 public interface CartService {
-    ResponseEntity<ApiResponse<Map<String, List<CartItemDto>>>> getCurrentUserCart();
-    ResponseEntity<ApiResponse<Map<String,CartItemDto>>> addItemToCart(AddToCartRequestDto addToCartRequestDto);
-    ResponseEntity<ApiResponse<Map<String,CartItemDto>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto);
-    ResponseEntity<ApiResponse<Map<String, Object>>> removeCartItem(Long cartItemId);
-    ResponseEntity<ApiResponse<Map<String, Object>>> clearCart();
-    ResponseEntity<ApiResponse<Map<String, Object>>> getCartSummary();
+    ResponseEntity<ApiResponse<Map<String,Object>>> getCurrentUserCart();
+    ResponseEntity<ApiResponse<Map<String,Object>>> addItemToCart(AddToCartRequestDto addToCartRequestDto);
+    ResponseEntity<ApiResponse<Map<String,Object>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto);
+    ResponseEntity<ApiResponse<Map<String,Object>>> removeCartItem(Long cartItemId);
+    ResponseEntity<ApiResponse<Map<String,Object>>> clearCart();
+    ResponseEntity<ApiResponse<Map<String,Object>>> getCartSummary();
 }

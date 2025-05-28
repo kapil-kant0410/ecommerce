@@ -15,7 +15,6 @@ import com.ql.ecommerce.repository.OtpRepository;
 import com.ql.ecommerce.repository.RefreshTokenRepository;
 import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.repository.VerificationTokenRepository;
-import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.security.JwtUtil;
 import com.ql.ecommerce.service.AuthService;
 import com.ql.ecommerce.service.CustomUserDetailsService;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -96,8 +94,7 @@ public class AuthServiceImpl implements AuthService {
     public ResponseEntity<ApiResponse<Map<String,String>>> register(EmailPasswordRegisterRequest emailPasswordRegisterRequest){
 
         if(userRepository.existsByEmail(emailPasswordRegisterRequest.getEmail())){
-            ApiResponse<Map<String,String>> apiResponse=  ApiResponse.error(HttpStatus.CONFLICT.value(), null,"Email already exists.");
-            return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
+            throw new IllegalArgumentException("Email already exists.");
         }
 
         User user=userMapper.toEntity(emailPasswordRegisterRequest);
@@ -142,9 +139,7 @@ public class AuthServiceImpl implements AuthService {
           User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email"));
 
           if(user.isEmailVerified()){
-              ApiResponse<Map<String, Object>> response = ApiResponse.error(
-                      HttpStatus.BAD_REQUEST.value(), null, "Email is already verified");
-              return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+              throw new IllegalArgumentException("Email is already verified");
           }
 
           verificationTokenRepository.deleteByUserIdAndTokenType(user.getId(),TokenType.EMAIL_VERIFICATION);
@@ -209,13 +204,11 @@ public class AuthServiceImpl implements AuthService {
         Otp otp=otpRepository.findTopByEmailOrderByGeneratedAtDesc(emailOtpVerifyRequest.getEmail()).orElseThrow(()-> new OtpNotFound("Otp not found for this email"));
 
         if (otp.getGeneratedAt().isBefore(LocalDateTime.now().minusMinutes(20))) {
-            ApiResponse<Map<String,Object>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Otp expired");
-            return new ResponseEntity<>(apiResponse,HttpStatus.BAD_REQUEST);
+            throw new IllegalArgumentException("Otp expired");
         }
 
         if (!otp.getOtp().equals(emailOtpVerifyRequest.getOtp())) {
-            ApiResponse<Map<String,Object>> apiResponse=ApiResponse.error(HttpStatus.BAD_REQUEST.value(), null,"Invalid otp");
-            return new ResponseEntity<>(apiResponse,HttpStatus.BAD_REQUEST);
+            throw new IllegalArgumentException("Invalid otp");
         }
 
         otpRepository.delete(otp);
@@ -263,10 +256,10 @@ public class AuthServiceImpl implements AuthService {
 
           RefreshToken oldRefreshToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Invalid refresh token already logged out"));
 
-         if (oldRefreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+          if (oldRefreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(oldRefreshToken);
             throw new TokenExpired("Refresh token expired");
-         }
+          }
 
           UserDetails userDetails=customUserDetailsService.loadUserByUsername(email);
           String accessToken=jwtUtil.generateJwtToken(userDetails,userId,accessTokenExpiration);
@@ -303,13 +296,11 @@ public class AuthServiceImpl implements AuthService {
         VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD).orElseThrow(()->new VerificationTokenNotFound("Password reset token not found"));
 
         if(!passwordEncoder.matches(token,verificationToken.getTokenHash())){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), "Invalid token"));
+            throw new IllegalArgumentException("Invalid token");
         }
 
         if(verificationToken.getExpiresAt().isBefore(LocalDateTime.now())||verificationToken.isUsed()){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), Collections.emptyMap(), "Token expired or already used"));
+            throw new IllegalArgumentException("Token expired or already used");
         }
 
         userMapper.updatePassword(verificationToken.getUser(),newPassword);
@@ -321,18 +312,13 @@ public class AuthServiceImpl implements AuthService {
     //change password with the new password
     public ResponseEntity<ApiResponse<Map<String,Object>>> changePassword(ChangePasswordRequest changePasswordRequest){
         if (Objects.equals(changePasswordRequest.getNewPassword(), changePasswordRequest.getPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    ApiResponse.error(
-                            HttpStatus.BAD_REQUEST.value(),
-                            Collections.emptyMap(),
-                            "New password must be different from the current password"
-                    )
-            );
+            throw new IllegalArgumentException("New password must be different from the current password");
         }
+
         User user=userRepository.findById(changePasswordRequest.getUserId()).orElseThrow(()-> new UserNotFound("User not found with this userId"));
+
         if(!passwordEncoder.matches(changePasswordRequest.getPassword(),user.getPassword())){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), Collections.emptyMap(), "Current password is incorrect"));
+          throw new IllegalArgumentException("Current password is incorrect");
         }
 
         user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));

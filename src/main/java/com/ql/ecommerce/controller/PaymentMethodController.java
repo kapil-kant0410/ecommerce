@@ -2,6 +2,7 @@ package com.ql.ecommerce.controller;
 
 import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.paymentMethod.PaymentMethodRequestDto;
+import com.ql.ecommerce.dto.paymentMethod.UpdatePaymentMethodRequestDto;
 import com.ql.ecommerce.service.PaymentMethodService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -30,8 +31,8 @@ public class PaymentMethodController {
     }
 
     @PutMapping("/{paymentMethodId}")
-    ResponseEntity<ApiResponse<Map<String, Object>>> updatePaymentMethod(@PathVariable Long paymentMethodId,@Valid @RequestBody PaymentMethodRequestDto paymentMethodRequestDto){
-        return paymentMethodService.updatePaymentMethod(paymentMethodId,paymentMethodRequestDto);
+    ResponseEntity<ApiResponse<Map<String, Object>>> updatePaymentMethod(@PathVariable Long paymentMethodId,@Valid @RequestBody UpdatePaymentMethodRequestDto updatePaymentMethodRequestDto){
+        return paymentMethodService.updatePaymentMethod(paymentMethodId,updatePaymentMethodRequestDto);
     }
 
     @DeleteMapping("/{paymentMethodId}")
