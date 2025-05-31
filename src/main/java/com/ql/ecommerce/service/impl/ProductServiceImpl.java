@@ -33,9 +33,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -151,9 +149,7 @@ public class ProductServiceImpl implements ProductService {
         String email=authUtil.getCurrentUserEmail();
         User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
 
-        logger.info("adding userId :{} and productId :{} in redis.",user.getId(),product.getId());
         recentlyViewedService.addToRecentlyViewedProducts(user.getId(), productDto);
-        logger.info("added userId :{} and productId :{} in redis.",user.getId(),product.getId());
 
         return responseBuilder.build("product",productDto,"Product fetched successfully");
 
@@ -203,12 +199,14 @@ public class ProductServiceImpl implements ProductService {
             throw new Forbidden("You are not authorized to delete this product.");
         }
 
-        ProductDto productDto=productMapper.toDto(product);
         productRepository.delete(product);
 
-        return responseBuilder.build("product",productDto,"Product deleted successfully");
-
+        return responseBuilder.build(Collections.emptyMap(),"Product deleted successfully");
     }
+
+
+    //Handling product variants
+
 
     //Retrieves a paginated, sorted, and filtered list of product variants based on color, size, price, and rating.
     public ResponseEntity<ApiResponse<Map<String,Object>>> getProductVariants( ProductVariantFilter filter){

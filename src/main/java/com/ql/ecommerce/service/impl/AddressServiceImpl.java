@@ -5,6 +5,7 @@ import com.ql.ecommerce.dto.address.response.AddressDto;
 import com.ql.ecommerce.entity.Address;
 import com.ql.ecommerce.entity.User;
 import com.ql.ecommerce.exception.AddressNotFound;
+import com.ql.ecommerce.exception.BadRequest;
 import com.ql.ecommerce.exception.Unauthorized;
 import com.ql.ecommerce.exception.UserNotFound;
 import com.ql.ecommerce.mapper.AddressMapper;
@@ -127,6 +128,10 @@ public class AddressServiceImpl implements AddressService {
 
         if(!address.getUser().getId().equals(user.getId())){
             throw new Unauthorized("You are not authorized to use this address");
+        }
+
+        if(address.isDefault()){
+            throw new BadRequest("This address Already marked default");
         }
 
         List<Address> userAddresses=addressRepository.findByUser(user);

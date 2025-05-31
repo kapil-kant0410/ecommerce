@@ -4,8 +4,6 @@ import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.util.ResponseBuilder;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.coyote.BadRequestException;
-import org.apache.coyote.Response;
-import org.json.HTTP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -39,7 +37,7 @@ public class GlobalExceptionHandler {
     //Global fallback exception handler
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleGlobalException(Exception ex, HttpServletRequest request){
-         logger.error("Unhandled exception occurred at [{}]: {}", request.getRequestURI(), ex.getMessage(), ex);
+         logger.error("[GlobalExceptionHandler] Exception ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
          return responseBuilder.error(HttpStatus.INTERNAL_SERVER_ERROR,null,ex.getMessage());
     }
 
@@ -47,12 +45,14 @@ public class GlobalExceptionHandler {
     //throw new IllegalArgumentException("ID must not be null")
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleIllegalArgument(IllegalArgumentException ex) {
+        logger.error("[GlobalExceptionHandler] IllegalArgumentException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.BAD_REQUEST, null, ex.getMessage());
     }
 
     //No endpoint for the given requested endpoint
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        logger.error("[GlobalExceptionHandler] NoResourceFoundException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 null,
@@ -64,61 +64,69 @@ public class GlobalExceptionHandler {
     //Catch general runtime exceptions
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleRunTimeException(RuntimeException ex) {
+        logger.error("[GlobalExceptionHandler] RuntimeException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.BAD_REQUEST, null, ex.getMessage());
     }
 
     //Remove this when u will add role based end points
     @ExceptionHandler(Forbidden.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleForbiddenException(Forbidden ex) {
+        logger.error("[GlobalExceptionHandler] Forbidden ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.FORBIDDEN, null, ex.getMessage());
     }
 
     //Handler for all resource-not-found-type exceptions
     @ExceptionHandler(ResourceNotFound.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleResourceNotFoundException(ResourceNotFound ex,HttpServletRequest request){
-        logger.warn("Resource not found at [{}]: {}", request.getRequestURI(), ex.getMessage());
+        logger.error("[GlobalExceptionHandler] ResourceNotFound ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.NOT_FOUND, null, ex.getMessage());
     }
 
     @ExceptionHandler(InvalidToken.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleInvalidTokenException(InvalidToken ex, HttpServletRequest request) {
-        logger.warn("Invalid token at [{}]: {}", request.getRequestURI(), ex.getMessage());
+        logger.error("[GlobalExceptionHandler] InvalidToken ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     //Invalid email and password
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleBadCredentials(BadCredentialsException ex) {
+        logger.error("[GlobalExceptionHandler] BadCredentialsException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     //Handles Token expiration in ExpiredJwtException
     @ExceptionHandler(TokenExpired.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleTokenExpiredException(TokenExpired ex) {
+        logger.error("[GlobalExceptionHandler] TokenExpired ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     //Handle exception when missing token in request
     @ExceptionHandler(MissingToken.class) // Handles only MissingTokenException
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleMissingTokenException(MissingToken ex) {
+        logger.error("[GlobalExceptionHandler] MissingToken ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     //handel exception for blacklisted tokens
     @ExceptionHandler(BlacklistedToken.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleBlacklistedTokenException(BlacklistedToken ex) {
+        logger.error("[GlobalExceptionHandler] BlacklistedToken ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     //Authenticated user is not authorized.
     @ExceptionHandler(AccessDenied.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleAccessDeniedException(AccessDenied ex) {
+        logger.error("[GlobalExceptionHandler] AccessDenied ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.FORBIDDEN, null, ex.getMessage());
     }
 
     //When a required query parameter or form parameter is missing
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleMissingRequestParamException(MissingServletRequestParameterException ex) {
+        logger.error("[GlobalExceptionHandler] MissingServletRequestParameterException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(
                 HttpStatus.BAD_REQUEST,
                 null,
@@ -129,6 +137,7 @@ public class GlobalExceptionHandler {
     //when a required path variable @Pathvariable is missing in a controller method
     @ExceptionHandler(MissingPathVariableException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleMissingPathVariable(MissingPathVariableException ex) {
+        logger.error("[GlobalExceptionHandler] MissingPathVariableException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(
                 HttpStatus.BAD_REQUEST,
                 null,
@@ -139,6 +148,7 @@ public class GlobalExceptionHandler {
     //This exception is thrown when validation on a request body annotated with @Valid fails
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleValidationErrorsException(MethodArgumentNotValidException ex,HttpServletRequest request) {
+        logger.error("[GlobalExceptionHandler] MethodArgumentNotValidException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         Map<String, Object> errors = new HashMap<>();
         errors.put("path", request.getRequestURI());
         errors.put("timestamp", Instant.now().toString());
@@ -153,6 +163,7 @@ public class GlobalExceptionHandler {
     //When the request body is missing or contains malformed/invalid JSON that cannot be deserialized
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        logger.error("[GlobalExceptionHandler] HttpMessageNotReadableException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.BAD_REQUEST, null, "Invalid or malformed JSON request body");
     }
 
@@ -160,6 +171,7 @@ public class GlobalExceptionHandler {
     //Invalid type in @RequestParam or @PathVariable.
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        logger.error("[GlobalExceptionHandler] MethodArgumentTypeMismatchException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.BAD_REQUEST, null, "Invalid type for parameter: " + ex.getName());
     }
 
@@ -167,23 +179,27 @@ public class GlobalExceptionHandler {
     //Wrong HTTP method (e.g., POST on GET endpoint).
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        logger.error("[GlobalExceptionHandler] HttpRequestMethodNotSupportedException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.METHOD_NOT_ALLOWED, null, "HTTP method not supported for this endpoint");
     }
 
     //Content-Type (e.g., application/json, multipart/form-data, etc.) of the request is not supported by the API endpoint
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        logger.error("[GlobalExceptionHandler] HttpMediaTypeNotSupportedException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, null, "Content-Type not supported");
     }
 
     //If email is null in authentication context
     @ExceptionHandler(Unauthorized.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleUnauthorizedException(Unauthorized ex) {
+        logger.error("[GlobalExceptionHandler] Unauthorized ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.UNAUTHORIZED, null, ex.getMessage());
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Map<String,Object>>> handleBadRequestException(BadRequestException ex) {
+        logger.error("[GlobalExceptionHandler] BadRequestException ExceptionType: {}  | Message: {}", ex.getClass().getSimpleName(), ex.getMessage());
         return responseBuilder.error(HttpStatus.BAD_REQUEST, null, ex.getMessage());
     }
 

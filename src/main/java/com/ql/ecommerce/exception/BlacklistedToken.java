@@ -1,7 +1,7 @@
 package com.ql.ecommerce.exception;
 
 public class BlacklistedToken extends RuntimeException{
-        BlacklistedToken(String message){
+        public BlacklistedToken(String message){
             super(message);
         }
 }

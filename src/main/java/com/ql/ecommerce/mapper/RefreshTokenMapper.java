@@ -19,16 +19,14 @@ public class RefreshTokenMapper {
     public RefreshToken toEntity(User user, String refreshToken){
         RefreshToken refreshTokenEntity=new RefreshToken();
         refreshTokenEntity.setRefToken(refreshToken);
-        refreshTokenEntity.setCreatedAt(LocalDateTime.now());
-        refreshTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
+        refreshTokenEntity.setUpdatedAt(LocalDateTime.now());
         refreshTokenEntity.setUser(user);
         return refreshTokenEntity;
     }
 
    public void updateRefreshToken(RefreshToken oldRefreshToken,String newRefreshToken){
         oldRefreshToken.setRefToken(newRefreshToken);
-        oldRefreshToken.setCreatedAt(LocalDateTime.now());
-        oldRefreshToken.setExpiresAt(LocalDateTime.now().plusDays(7));
+        oldRefreshToken.setUpdatedAt(LocalDateTime.now());
         refreshTokenRepository.save(oldRefreshToken);
     }
 

@@ -90,7 +90,8 @@ public class AuthServiceImpl implements AuthService {
         this.otpMapper=otpMapper;
     }
 
-    //registering user and sending verification link to the registered user
+    // Registers a new user with email/password, generates an email verification token,
+    // and sends a verification link to the user's email. Throws an exception if the email is already registered.
     public ResponseEntity<ApiResponse<Map<String,String>>> register(EmailPasswordRegisterRequest emailPasswordRegisterRequest){
 
         if(userRepository.existsByEmail(emailPasswordRegisterRequest.getEmail())){
@@ -110,7 +111,8 @@ public class AuthServiceImpl implements AuthService {
         return new ResponseEntity<>(apiResponse,HttpStatus.CREATED);
     }
 
-    //verifying email by token that is received while registering user and delete verification token from table
+    // Verifies the user's email using the token from the verification link.
+    // Checks token validity (expiry/usage) and marks the email as verified if successful.
     public ResponseEntity<ApiResponse<Map<String,Object>>> verifyEmail(Long userId,String token){
 
        VerificationToken verificationToken=verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.EMAIL_VERIFICATION).orElseThrow(()-> new VerificationTokenNotFound("Email verification token not found"));
@@ -132,7 +134,8 @@ public class AuthServiceImpl implements AuthService {
        return responseBuilder.build(Collections.emptyMap(),"Verification successful");
     }
 
-    //generating email verification token again if user does missed verification token while registering deleting old email verification token
+     // Resends the email verification link if the user missed the initial email.
+    // Deletes the old token and generates a new one. Fails if the email is already verified.
     @Transactional
     public ResponseEntity<ApiResponse<Map<String,Object>>> resendEmailVerification(EmailRequest emailRequest){
           String email=emailRequest.getEmail();
@@ -153,7 +156,8 @@ public class AuthServiceImpl implements AuthService {
           return responseBuilder.build(Collections.emptyMap(),"Verification email resent successfully");
     }
 
-    //login by email and password
+    // Authenticates a user via email/password, generates JWT access/refresh tokens upon success,
+    // and returns them in the response. Throws exceptions for invalid credentials or missing users
     public ResponseEntity<ApiResponse<Map<String,Object>>> login(EmailPasswordLoginRequest emailPasswordLoginRequest){
 
         User user=userRepository.findByEmail(emailPasswordLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
@@ -176,13 +180,11 @@ public class AuthServiceImpl implements AuthService {
         data.put("access_token",accessToken);
         data.put("refresh_token",refreshToken);
 
-        RefreshToken refreshTokenEntity=refreshTokenMapper.toEntity(user,refreshToken);
-        refreshTokenRepository.save(refreshTokenEntity);
-
         return responseBuilder.build("Tokens",data,"User Logged In");
     }
 
-    //generating email otp
+    // Generates a 6-digit OTP for email-based login, saves it to the database,
+    // and sends it to the user's email. Used as an alternative to password login.
     public ResponseEntity<ApiResponse<Map<String,Object>>> generateEmailOtp(EmailOtpLoginRequest emailOtpLoginRequest){
 
         userRepository.findByEmail(emailOtpLoginRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email."));
@@ -197,7 +199,8 @@ public class AuthServiceImpl implements AuthService {
 
     }
 
-    //validating otp from otps table
+    // Validates the OTP sent to the user's email. If valid, deletes the OTP,
+    // generates JWT tokens, and logs the user in. Rejects expired or incorrect OTPs.
     public ResponseEntity<ApiResponse<Map<String,Object>>> validateEmailOtp(EmailOtpVerifyRequest emailOtpVerifyRequest){
 
         User user=userRepository.findByEmail(emailOtpVerifyRequest.getEmail()).orElseThrow(()->new UserNotFound("User Not found with this email."));
@@ -217,10 +220,6 @@ public class AuthServiceImpl implements AuthService {
         String accessToken=jwtUtil.generateJwtToken(userDetails,user.getId(),accessTokenExpiration);
         String refreshToken=jwtUtil.generateJwtToken(userDetails,user.getId(),refreshTokenExpiration);
 
-        RefreshToken refreshTokenEntity=refreshTokenMapper.toEntity(user,refreshToken);
-
-        refreshTokenRepository.save(refreshTokenEntity);
-
         Map<String,String> data=new HashMap<>();
         data.put("access_token",accessToken);
         data.put("refresh_token",refreshToken);
@@ -228,7 +227,8 @@ public class AuthServiceImpl implements AuthService {
         return responseBuilder.build("tokens",data,"Login Successfully");
     }
 
-    //deleting refresh token from refresh_tokens table
+    // Invalidates the provided refresh token by saving it to a blacklist (logout).
+    // Prevents reuse of the same token and ensures the user is logged out.
     @Transactional
     public ResponseEntity<ApiResponse<Map<String,Object>>> logout(RefreshTokenRequest refreshTokenRequest){
 
@@ -237,45 +237,49 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Long userId= jwtUtil.getUserIdFromToken(refreshTokenRequest.getRefreshToken());
+        User user=userRepository.findById(userId).orElseThrow(()->new UserNotFound("User not found with this id"));
 
-       refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Refresh token not found"));
-       refreshTokenRepository.deleteByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
+        Optional<RefreshToken> refreshToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
 
-      return responseBuilder.build(Collections.emptyMap(),"Logged out successfully");
+        if(refreshToken.isPresent()){
+            throw new BadRequest("Already logged out");
+        }
+
+        RefreshToken refreshTokenEntity=refreshTokenMapper.toEntity(user,refreshTokenRequest.getRefreshToken());
+        refreshTokenRepository.save(refreshTokenEntity);
+
+        return responseBuilder.build(Collections.emptyMap(),"Logged out successfully");
     }
 
-    //generating access token and refresh token on valid refresh token and deleting old refresh token
+    // Generates a new access token using a valid refresh token.
+    // Rejects blacklisted or expired refresh tokens to ensure security.
     public ResponseEntity<ApiResponse<Map<String,Object>>> refreshAccessToken(RefreshTokenRequest refreshTokenRequest){
 
           if(!jwtUtil.validateJwtToken(refreshTokenRequest.getRefreshToken())){
-              throw new InvalidToken("token is invalid");
+              throw new InvalidToken("token is either expire or invalid");
           }
 
           Long userId= jwtUtil.getUserIdFromToken(refreshTokenRequest.getRefreshToken());
           String email=jwtUtil.getUserNameFromJwtToken(refreshTokenRequest.getRefreshToken());
 
-          RefreshToken oldRefreshToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId).orElseThrow(()->new RefreshTokenNotFound("Invalid refresh token already logged out"));
+          Optional<RefreshToken> blackListToken=refreshTokenRepository.findByRefTokenAndUserId(refreshTokenRequest.getRefreshToken(),userId);
 
-          if (oldRefreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            refreshTokenRepository.delete(oldRefreshToken);
-            throw new TokenExpired("Refresh token expired");
+          if(blackListToken.isPresent()){
+              throw new BlacklistedToken("Black listed logged out token");
           }
 
           UserDetails userDetails=customUserDetailsService.loadUserByUsername(email);
           String accessToken=jwtUtil.generateJwtToken(userDetails,userId,accessTokenExpiration);
-          String refreshToken=jwtUtil.generateJwtToken(userDetails,userId,refreshTokenExpiration);
-
-          refreshTokenMapper.updateRefreshToken(oldRefreshToken,refreshToken);
 
           Map<String,String> data=new HashMap<>();
           data.put("access_token",accessToken);
-          data.put("refresh_token",refreshToken);
 
-          return responseBuilder.build("Tokens",data,"New access and refresh tokens");
+          return responseBuilder.build("Tokens",data,"New access token");
 
     }
 
-    //generating password reset token for that user
+    // Initiates password reset by generating a token, sending a reset link to the user's email,
+    // and saving the token. Fails if the email is not registered.
     public ResponseEntity<ApiResponse<Map<String,Object>>> forgotPassword(EmailRequest emailRequest){
 
         User user = userRepository.findByEmail(emailRequest.getEmail()).orElseThrow(()->new UserNotFound("User not found with this email"));
@@ -290,7 +294,8 @@ public class AuthServiceImpl implements AuthService {
         return responseBuilder.build(Collections.emptyMap(),"Password reset link sent");
     }
 
-    //verifying reset password token delete it from verification_token table and update new password
+    // Resets the user's password after validating the reset token.
+    // Updates the password and deletes the token once used.
     public ResponseEntity<ApiResponse<Map<String,Object>>> resetPassword(Long userId ,String token,String newPassword){
 
         VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndTokenType(userId,TokenType.FORGOT_PASSWORD).orElseThrow(()->new VerificationTokenNotFound("Password reset token not found"));
@@ -309,7 +314,8 @@ public class AuthServiceImpl implements AuthService {
         return responseBuilder.build(Collections.emptyMap(),"Password reset successful");
     }
 
-    //change password with the new password
+    // Updates the user's password after validating the current password.
+    // Ensures the new password is different from the old one.
     public ResponseEntity<ApiResponse<Map<String,Object>>> changePassword(ChangePasswordRequest changePasswordRequest){
         if (Objects.equals(changePasswordRequest.getNewPassword(), changePasswordRequest.getPassword())) {
             throw new IllegalArgumentException("New password must be different from the current password");
