@@ -30,4 +30,10 @@ public class ResponseBuilder {
         ));
     }
 
+    public ResponseEntity<ApiResponse<Map<String, Object>>> error(HttpStatus status, Map<String, Object> data, String message) {
+        return ResponseEntity.status(status).body(ApiResponse.error(
+                status.value(), data, message
+        ));
+    }
+
 }

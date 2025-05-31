@@ -40,7 +40,7 @@ public class PaymentMethodController {
         return paymentMethodService.deletePaymentMethod(paymentMethodId);
     }
 
-    @PutMapping("/{paymentMethodId}/set-default")
+    @PatchMapping("/{paymentMethodId}/set-default")
     ResponseEntity<ApiResponse<Map<String, Object>>> markAsDefaultPaymentMethod(@PathVariable Long paymentMethodId){
         return paymentMethodService.markAsDefaultPaymentMethod(paymentMethodId);
     }

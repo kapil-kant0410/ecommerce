@@ -1,16 +1,16 @@
 package com.ql.ecommerce.controller;
 
 import com.ql.ecommerce.dto.ApiResponse;
-import com.ql.ecommerce.dto.ProductVariant.ProductVariantDto;
 import com.ql.ecommerce.dto.ProductVariant.filter.ProductVariantFilter;
 import com.ql.ecommerce.dto.product.filter.ProductFilter;
 import com.ql.ecommerce.dto.product.response.ProductDto;
 import com.ql.ecommerce.service.ProductService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,6 +18,7 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    Logger logger= LoggerFactory.getLogger(ProductController.class);
 
     public ProductController(ProductService productService){
         this.productService=productService;
@@ -29,22 +30,17 @@ public class ProductController {
     }
 
     @GetMapping()
-    ResponseEntity<ApiResponse<Map<String, Object>>> getAllProducts(){
-        return productService.getAllProducts();
-    }
-
-    @GetMapping("/v1")
-    public ResponseEntity<ApiResponse<Map<String,Object>>> getAllProductsV1(@ModelAttribute ProductFilter productFilter){
-        return productService.getAllProductsV1(productFilter);
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getAllProducts(@ModelAttribute ProductFilter productFilter){
+        return productService.getAllProducts(productFilter);
     }
 
     @GetMapping("/{productId}/similar-by-category")
-    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarByCategory(@PathVariable Long productId) {
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByCategory(@PathVariable Long productId) {
         return productService.getSimilarProductsByCategory(productId);
     }
 
     @GetMapping("/{productId}/similar-by-brand")
-    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarByBrand(@PathVariable Long productId) {
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getSimilarProductsByBrand(@PathVariable Long productId) {
         return productService.getSimilarProductsByBrand(productId);
     }
 
@@ -68,28 +64,38 @@ public class ProductController {
         return productService.deleteProduct(productId);
     }
 
-    @GetMapping("/{productId}/variants")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantsByProductId(@PathVariable Long productId){
-        return productService.getProductVariantsByProductId(productId);
+             //product variants apis
+            //Product variant
+           // To filter, sort, and paginate product variants based on multiple criteria such as:
+          // Color(s)
+        // Size(s)
+       // Price range
+      // Minimum rating
+     // Sorting (by any field)
+    //  Pagination (page number and size)
+
+    @GetMapping("/product-variant/all")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariants(@ModelAttribute ProductVariantFilter filter) {
+        return productService.getProductVariants(filter);
     }
 
-    @GetMapping("/{productId}/variants/v1")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantsByProductIdV1(
-            @PathVariable Long productId,
-            @ModelAttribute ProductVariantFilter filter) {
-
-        return productService.getProductVariantsByProductIdV1(filter);
-    }
+    //To fetch all other product variants of the same product,
+    // excluding the one specified by productVariantId.
 
     @GetMapping("/product-variant/{productVariantId}/other-variants")
-    public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariants(@PathVariable Long productVariantId) {
+    public ResponseEntity<ApiResponse<Map<String,Object>>> getOtherVariantsByProductVariantId(@PathVariable Long productVariantId) {
         return productService.getOtherVariantsByProductVariantId(productVariantId);
     }
 
-    @GetMapping("/{productId}/product-variant/{productVariantId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariantByVariantId(@PathVariable Long productId,@PathVariable Long productVariantId){
-           return productService.getProductVariantByVariantId(productId,productVariantId);
+    //To fetch details of a specific product variant
+    // and also save it in the recently viewed list of the current user.
+
+    @GetMapping("/product-variant/{productVariantId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductVariant(@PathVariable Long productVariantId){
+           return productService.getProductVariant(productVariantId);
     }
+
+    //To fetch the list of product variants the logged-in user recently viewed.
 
     @GetMapping("/product-variant/recently-viewed")
     ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProductVariants(){

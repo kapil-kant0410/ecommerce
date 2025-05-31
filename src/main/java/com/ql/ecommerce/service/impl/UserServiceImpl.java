@@ -4,6 +4,8 @@ import com.ql.ecommerce.dto.ApiResponse;
 import com.ql.ecommerce.dto.user.request.UserUpdate;
 import com.ql.ecommerce.dto.user.response.UserDto;
 import com.ql.ecommerce.entity.User;
+import com.ql.ecommerce.enums.Role;
+import com.ql.ecommerce.exception.BadRequest;
 import com.ql.ecommerce.exception.UserNotFound;
 import com.ql.ecommerce.mapper.UserMapper;
 import com.ql.ecommerce.repository.UserRepository;
@@ -31,6 +33,12 @@ public class UserServiceImpl implements UserService {
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllUsers() {
+        String email = authUtil.getCurrentUserEmail();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFound("User not found with this email: " + email));
+        if(!user.getRole().equals(Role.ROLE_ADMIN)){
+            throw new BadRequest("Only admin is allowed to sccess it");
+        }
         List<User> users = userRepository.findAll();
         List<UserDto> userDtos = userMapper.toDtoList(users);
         return responseBuilder.build("users", userDtos, "All users fetched successfully");
@@ -40,6 +48,7 @@ public class UserServiceImpl implements UserService {
         String email = authUtil.getCurrentUserEmail();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFound("User not found with this email: " + email));
+
         UserDto userDto = userMapper.toDto(user);
         return responseBuilder.build("user", userDto, "Current user profile fetched successfully");
     }

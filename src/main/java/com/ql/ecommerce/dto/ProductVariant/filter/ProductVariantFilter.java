@@ -12,7 +12,7 @@ public class ProductVariantFilter {
     private int size = 10;                    // default size
     private String direction = "asc";         // sort direction
     private String sortBy = "id";             // sort field
-    private int rating;                       // optional
+    private int rating;                       // optional minimum rating
     private List<String> colors;              // optional
     private List<String> sizes;               // optional
     private Long minPrice;                    // optional

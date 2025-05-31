@@ -190,6 +190,8 @@ public class CartServiceImpl implements CartService {
 
         List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
 
+        cartItemRepository.deleteAll(cartItems);
+
         return responseBuilder.build("Deleted cart items",cartItemDtos,"All cart items cleared successfully");
     }
 

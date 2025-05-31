@@ -78,17 +78,16 @@ public class OrderServiceImpl implements OrderService {
             throw new EmptyCart("Cannot place order with empty cart.");
         }
 
+        long totalAmount=0;
+
         for (CartItem item : cartItems) {
             ProductVariant variant = item.getProductVariant();
             long availableQuantity = variant.getStockQuantity() - variant.getReservedQuantity();
             if (item.getQuantity() > availableQuantity) {
                 throw new BadRequest("Product variant " + variant.getSku() + " is out of stock or does not have enough quantity. Available: " + availableQuantity);
             }
+            totalAmount=totalAmount+ item.getTotalPrice();
         }
-
-        long totalAmount = Math.round(cartItems.stream()
-                .mapToDouble(item -> item.getProductVariant().getPrice() * item.getQuantity())
-                .sum());
 
         Order order = OrderMapper.createOrder(customer, shippingAddress, paymentMethod, totalAmount);
 
