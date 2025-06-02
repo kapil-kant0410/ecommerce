@@ -16,7 +16,6 @@ import com.ql.ecommerce.mapper.ProductVariantMapper;
 import com.ql.ecommerce.repository.CategoryRepository;
 import com.ql.ecommerce.repository.ProductRepository;
 import com.ql.ecommerce.repository.ProductVariantRepository;
-import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.ProductService;
 import com.ql.ecommerce.service.RecentlyViewedService;
@@ -38,7 +37,6 @@ import java.util.*;
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final AuthUtil authUtil;
     private final ProductRepository productRepository;
@@ -51,10 +49,9 @@ public class ProductServiceImpl implements ProductService {
     private final ResponseBuilder responseBuilder;
     private final Logger logger= LoggerFactory.getLogger(ProductServiceImpl.class);
 
-    public ProductServiceImpl(ResponseBuilder responseBuilder,RecentlyViewedService recentlyViewedService,ProductVariantSpecification productVariantSpecification,ProductSpecification productSpecification,ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductMapper productMapper,ProductRepository productRepository,UserRepository userRepository,AuthUtil authUtil,CategoryRepository categoryRepository){
+    public ProductServiceImpl(ResponseBuilder responseBuilder,RecentlyViewedService recentlyViewedService,ProductVariantSpecification productVariantSpecification,ProductSpecification productSpecification,ProductVariantMapper productVariantMapper,ProductVariantRepository productVariantRepository,ProductMapper productMapper,ProductRepository productRepository,AuthUtil authUtil,CategoryRepository categoryRepository){
         this.categoryRepository=categoryRepository;
         this.authUtil=authUtil;
-        this.userRepository=userRepository;
         this.productRepository=productRepository;
         this.productMapper=productMapper;
         this.productVariantRepository=productVariantRepository;
@@ -67,21 +64,19 @@ public class ProductServiceImpl implements ProductService {
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> createProduct(ProductDto productDto){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email: "+email));
+        User user=authUtil.getCurrentUser();
         Category category=categoryRepository.findById(productDto.getCategoryId()).orElseThrow(()-> new CategoryNotFound("Category not found with id:"+productDto.getCategoryId()));
 
         if(!user.getRole().equals(Role.ROLE_SELLER)){
               throw new Forbidden("Only sellers are allowed to perform this action.");
         }
 
-      Product product= productMapper.toEntity(productDto,category,user);
+       Product product= productMapper.toEntity(productDto,category,user);
 
-      Product createdProduct = productRepository.save(product);
-      ProductDto createdProductDto =productMapper.toDto(createdProduct);
+       Product createdProduct = productRepository.save(product);
+       ProductDto createdProductDto =productMapper.toDto(createdProduct);
 
-      return responseBuilder.build("product",createdProductDto,"Product created successfully");
-
+       return responseBuilder.build("product",createdProductDto,"Product created successfully");
     }
 
     //page (default: 0)
@@ -143,32 +138,29 @@ public class ProductServiceImpl implements ProductService {
 
     //: Returns product details for the given ID and stores it in the user's recently viewed list.
     public ResponseEntity<ApiResponse<Map<String,Object>>> getProductById(Long productId){
+
         Product product=productRepository.findById(productId).orElseThrow(()-> new ProductNotFound("Product not found with this productId: "+productId));
         ProductDto productDto=productMapper.toDto(product);
-
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+        User user=authUtil.getCurrentUser();
 
         recentlyViewedService.addToRecentlyViewedProducts(user.getId(), productDto);
 
         return responseBuilder.build("product",productDto,"Product fetched successfully");
-
     }
 
     //Retrieves the list of products recently viewed by the current logged-in user.
     public ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProducts(){
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+        User user=authUtil.getCurrentUser();
         List<ProductDto> productDtos=recentlyViewedService.getRecentlyViewedProducts(user.getId());
+
         return responseBuilder.build("products",productDtos,"All recently viewed products");
     }
 
     //Allows the product owner to update the product details.
     public ResponseEntity<ApiResponse<Map<String,Object>>> updateProduct(Long productId, ProductDto productDto){
 
-        String email= authUtil.getCurrentUserEmail();
         Product product=productRepository.findById(productId).orElseThrow(()-> new ProductNotFound("Product not found with this productId "+productId));
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+        User user=authUtil.getCurrentUser();
 
         if(!product.getUser().getId().equals(user.getId())){
              throw new Forbidden("You are not authorized to update this product.");
@@ -189,9 +181,7 @@ public class ProductServiceImpl implements ProductService {
     //Allows the product owner to delete the product.
     public ResponseEntity<ApiResponse<Map<String,Object>>> deleteProduct(Long productId) {
 
-        String email = authUtil.getCurrentUserEmail();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with this email: " + email));
+        User user=authUtil.getCurrentUser();
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ProductNotFound("Product not found with id: " + productId));
 
@@ -249,23 +239,21 @@ public class ProductServiceImpl implements ProductService {
     // and also save it in the recently viewed list of the current user.
     public ResponseEntity<ApiResponse<Map<String,Object>>> getProductVariant(Long productVariantId){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email "+email));
-
+        User user=authUtil.getCurrentUser();
         ProductVariant productVariant=productVariantRepository.findById(productVariantId).orElseThrow(()->new ProductVariantNotFound("Product variant not found with this is "+productVariantId));
 
         ProductVariantDto productVariantDto=productVariantMapper.toDto(productVariant);
         recentlyViewedService.addToRecentlyViewedVariants(user.getId(),productVariantDto);
 
         return responseBuilder.build("product variant",productVariantDto,"Product variant fetched successfully");
-
     }
 
     //To fetch the list of product variants the logged-in user recently viewed.
     public ResponseEntity<ApiResponse<Map<String,Object>>> getRecentlyViewedProductVariants(){
-         String email=authUtil.getCurrentUserEmail();
-         User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email "+email));
+
+         User user=authUtil.getCurrentUser();
          List<ProductVariantDto> productVariantDtos=recentlyViewedService.getRecentlyViewedVariants(user.getId());
          return responseBuilder.build("product variants",productVariantDtos,"All recently viewed product variants");
     }
+
 }

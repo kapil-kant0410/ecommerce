@@ -55,6 +55,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwtUtil.validateJwtToken(jwt)) {
                 logger.info("In JwtAuth filter after validation of token");
                 String username = jwtUtil.getUserNameFromJwtToken(jwt);
+                //returns object of custom user details
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
                 logger.info("In JwtAuth filter userDetail object loaded from userDetail service");
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

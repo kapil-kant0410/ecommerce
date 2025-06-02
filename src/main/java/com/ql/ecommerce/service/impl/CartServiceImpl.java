@@ -10,17 +10,14 @@ import com.ql.ecommerce.mapper.CartItemMapper;
 import com.ql.ecommerce.repository.CartItemRepository;
 import com.ql.ecommerce.repository.CartRepository;
 import com.ql.ecommerce.repository.ProductVariantRepository;
-import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.CartService;
 import com.ql.ecommerce.util.ResponseBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +27,6 @@ import java.util.Optional;
 public class CartServiceImpl implements CartService {
 
     private final AuthUtil authUtil;
-    private final UserRepository userRepository;
     private final ProductVariantRepository productVariantRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -38,9 +34,8 @@ public class CartServiceImpl implements CartService {
     private final ResponseBuilder responseBuilder;
     private final Logger logger= LoggerFactory.getLogger(CartServiceImpl.class);
 
-    public CartServiceImpl(ResponseBuilder responseBuilder,CartItemMapper cartItemMapper,CartItemRepository cartItemRepository,CartRepository cartRepository,ProductVariantRepository productVariantRepository,UserRepository userRepository, AuthUtil authUtil){
+    public CartServiceImpl(ResponseBuilder responseBuilder,CartItemMapper cartItemMapper,CartItemRepository cartItemRepository,CartRepository cartRepository,ProductVariantRepository productVariantRepository,AuthUtil authUtil){
         this.authUtil=authUtil;
-        this.userRepository=userRepository;
         this.productVariantRepository=productVariantRepository;
         this.cartRepository=cartRepository;
         this.cartItemRepository=cartItemRepository;
@@ -50,14 +45,8 @@ public class CartServiceImpl implements CartService {
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUserCart(){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with email "+email));
-        Cart cart=cartRepository.findByUser(user)
-                .orElseGet(()->{
-                    Cart newCart=new Cart();
-                    newCart.setUser(user);
-                    return cartRepository.save(newCart);
-                });
+        User user=authUtil.getCurrentUser();
+        Cart cart=cartRepository.findByUser(user).orElseThrow(()-> new CartNotFound("Cart not found for current user"));
 
         List<CartItem> cartItems=cartItemRepository.findByCart(cart);
         List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
@@ -67,10 +56,7 @@ public class CartServiceImpl implements CartService {
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> addItemToCart(AddToCartRequestDto addToCartRequestDto){
 
-        String email = authUtil.getCurrentUserEmail();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with email: " + email));
-
+        User user=authUtil.getCurrentUser();
         ProductVariant productVariant = productVariantRepository.findById(addToCartRequestDto.getProductVariantId())
                 .orElseThrow(() -> new ProductVariantNotFound("ProductVariant not found with ID: " + addToCartRequestDto.getProductVariantId()));
 
@@ -118,9 +104,7 @@ public class CartServiceImpl implements CartService {
 
     public ResponseEntity<ApiResponse<Map<String,Object>>> updateCartItemQuantity (Long cartId,AddToCartRequestDto addToCartRequestDto){
 
-          String email=authUtil.getCurrentUserEmail();
-
-          User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+ email));
+          User user=authUtil.getCurrentUser();
           ProductVariant productVariant=productVariantRepository.findById(addToCartRequestDto.getProductVariantId()).orElseThrow(()-> new ProductVariantNotFound("product variant not found for this product variant id "+addToCartRequestDto.getProductVariantId()));
           CartItem cartItem=cartItemRepository.findByCartIdAndProductVariant(cartId,productVariant).orElseThrow(()-> new CartItemNotFound("cart item not found for this cart id and product variant id"));
 
@@ -151,10 +135,7 @@ public class CartServiceImpl implements CartService {
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> removeCartItem(Long cartItemId){
 
-        String email = authUtil.getCurrentUserEmail();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
+        User user=authUtil.getCurrentUser();
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFound("Cart item not found for ID: " + cartItemId));
@@ -172,14 +153,11 @@ public class CartServiceImpl implements CartService {
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> clearCart(){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with this email " + email));
-
+        User user=authUtil.getCurrentUser();
         Cart cart=user.getCart();
 
         if (cart == null) {
-           throw new CartNotFound("Cart not found for user: " + email);
+           throw new CartNotFound("Cart not found for user: " + user.getEmail());
         }
 
         List<CartItem> cartItems=cartItemRepository.findByCart(cart);
@@ -191,19 +169,16 @@ public class CartServiceImpl implements CartService {
         List<CartItemDto> cartItemDtos=cartItemMapper.toDtoList(cartItems);
 
         cartItemRepository.deleteAll(cartItems);
-
         return responseBuilder.build("Deleted cart items",cartItemDtos,"All cart items cleared successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCartSummary(){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email"+email));
-
+        User user=authUtil.getCurrentUser();
         Cart cart= user.getCart();
 
         if(cart==null){
-            throw new CartNotFound("Cart not found for user: " + email);
+            throw new CartNotFound("Cart not found for user: " + user.getEmail());
         }
 
         List<CartItem> cartItems = cartItemRepository.findByCart(cart);

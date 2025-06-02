@@ -8,14 +8,12 @@ import com.ql.ecommerce.exception.Forbidden;
 import com.ql.ecommerce.exception.PaymentMethodNotFound;
 import com.ql.ecommerce.mapper.PaymentMethodMapper;
 import com.ql.ecommerce.repository.PaymentMethodRepository;
-import com.ql.ecommerce.repository.UserRepository;
 import com.ql.ecommerce.security.AuthUtil;
 import com.ql.ecommerce.service.PaymentMethodService;
 import com.ql.ecommerce.util.ResponseBuilder;
 import org.springframework.http.ResponseEntity;
 import com.ql.ecommerce.entity.User;
 import com.ql.ecommerce.entity.PaymentMethod;
-import com.ql.ecommerce.exception.UserNotFound;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -25,14 +23,12 @@ import java.util.List;
 public class PaymentMethodServiceImpl implements PaymentMethodService {
 
     private final AuthUtil authUtil;
-    private final UserRepository userRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentMethodMapper paymentMethodMapper;
     private final ResponseBuilder responseBuilder;
 
-    public PaymentMethodServiceImpl(ResponseBuilder responseBuilder,PaymentMethodMapper paymentMethodMapper,PaymentMethodRepository paymentMethodRepository,UserRepository userRepository,AuthUtil authUtil){
+    public PaymentMethodServiceImpl(ResponseBuilder responseBuilder,PaymentMethodMapper paymentMethodMapper,PaymentMethodRepository paymentMethodRepository,AuthUtil authUtil){
         this.authUtil=authUtil;
-        this.userRepository=userRepository;
         this.paymentMethodRepository=paymentMethodRepository;
         this.paymentMethodMapper=paymentMethodMapper;
         this.responseBuilder=responseBuilder;
@@ -40,33 +36,28 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPaymentMethods() {
 
-        String email = authUtil.getCurrentUserEmail();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with this email: " + email));
+        User user=authUtil.getCurrentUser();
 
         List<PaymentMethod> paymentMethods=paymentMethodRepository.findByUserId(user.getId());
         List<PaymentMethodResponseDto> paymentMethodResponseDtos=paymentMethodMapper.toDtoList(paymentMethods);
 
-        return responseBuilder.build("Payment methods",paymentMethodResponseDtos,"User payment methods fetched successfully");
+        return responseBuilder.build("payment methods",paymentMethodResponseDtos,"User payment methods fetched successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> addPaymentMethod(PaymentMethodRequestDto paymentMethodRequestDto){
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()->new UserNotFound("User not found with this email"+email));
+        User user=authUtil.getCurrentUser();
 
         PaymentMethod paymentMethod = paymentMethodMapper.toEntity(paymentMethodRequestDto,user);
         paymentMethodRepository.save(paymentMethod);
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        return responseBuilder.build("Payment methods",paymentMethodResponseDto,"User payment methods fetched successfully");
+        return responseBuilder.build("payment methods",paymentMethodResponseDto,"User payment methods fetched successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> updatePaymentMethod(Long paymentMethodId, UpdatePaymentMethodRequestDto updatePaymentMethodRequestDto) {
 
-        String email=authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+        User user=authUtil.getCurrentUser();
         PaymentMethod paymentMethod=paymentMethodRepository.findById(paymentMethodId).orElseThrow(()-> new PaymentMethodNotFound("Payment method not found with this payment method id "+ paymentMethodId));
 
         if(!paymentMethod.getUser().getId().equals(user.getId())){
@@ -78,12 +69,12 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
 
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        return responseBuilder.build("Payment method",paymentMethodResponseDto,"Payment method updated successfully");
+        return responseBuilder.build("payment method",paymentMethodResponseDto,"Payment method updated successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> deletePaymentMethod(Long paymentMethodId){
-        String email= authUtil.getCurrentUserEmail();
-        User user=userRepository.findByEmail(email).orElseThrow(()-> new UserNotFound("User not found with this email "+email));
+
+        User user=authUtil.getCurrentUser();
         PaymentMethod paymentMethod=paymentMethodRepository.findById(paymentMethodId).orElseThrow(()-> new PaymentMethodNotFound("Payment method not found with this payment method id "+ paymentMethodId));
 
         if(!paymentMethod.getUser().getId().equals(user.getId())){
@@ -93,14 +84,12 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         paymentMethodRepository.delete(paymentMethod);
         PaymentMethodResponseDto paymentMethodResponseDto=paymentMethodMapper.toDto(paymentMethod);
 
-        return responseBuilder.build("Payment method",paymentMethodResponseDto,"Payment method deleted successfully");
+        return responseBuilder.build("payment method",paymentMethodResponseDto,"Payment method deleted successfully");
     }
 
     public ResponseEntity<ApiResponse<Map<String, Object>>> markAsDefaultPaymentMethod(Long paymentMethodId){
 
-        String email= authUtil.getCurrentUserEmail();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFound("User not found with this email: " + email));
+        User user=authUtil.getCurrentUser();
         PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentMethodId)
                 .orElseThrow(() -> new PaymentMethodNotFound("Payment method not found with id: " + paymentMethodId));
 
